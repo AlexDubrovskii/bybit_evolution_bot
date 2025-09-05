@@ -1,0 +1,20 @@
+{
+    "testnet": true,
+    "symbol": "DOGEUSDT",
+    "timeframe": "5",
+    "account_type": "UNIFIED",
+    "generation_duration_minutes": 5,
+    "population_size": 20,
+    "initial_balance": 1000.0,
+    "global_trade_percentage": 0.1,
+    "fitness_weights": {
+        "profit": 1.0,
+        "sharpe_ratio": 0.8,
+        "max_drawdown": -1.5,
+        "profit_factor": 0.7,
+        "win_rate": 0.6,
+        "consistency": 0.5,
+        "risk_adjustment": 0.9
+    },
+    "fitness_threshold": 0.15
+}
