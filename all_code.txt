@@ -1,0 +1,3146 @@
+﻿=== .env.json ===
+# шибка: не удалось декодировать файл: C:\Users\satan\Documents\trading\evol-robot\bybit_evolution_bot\.env.json
+
+=== all_code1.txt ===
+﻿=== .env.json ===
+
+
+
+=== analysis\__init__.py ===
+
+
+
+=== analysis\global_params.py ===
+
+
+
+=== analysis\metrics.py ===
+
+import numpy as np
+from typing import List, Dict, Any
+
+class AdvancedMetrics:
+    @staticmethod
+    def calculate_sharpe_ratio(returns: List[float], risk_free_rate: float = 0.0) -> float:
+        if len(returns) < 2 or np.std(returns) == 0:
+            return 0.0
+        return (np.mean(returns) - risk_free_rate) / np.std(returns) * np.sqrt(365 * 24 * 12)  # Р“РѕРґРѕРІР°СЏ РґРѕС…РѕРґРЅРѕСЃС‚СЊ СЃ СѓС‡РµС‚РѕРј РјРёРЅСѓС‚РЅС‹С… РґР°РЅРЅС‹С…
+
+    @staticmethod
+    def calculate_max_drawdown(balances: List[float]) -> float:
+        peak = balances[0]
+        max_drawdown = 0
+        for balance in balances:
+            if balance > peak:
+                peak = balance
+            drawdown = (peak - balance) / peak
+            if drawdown > max_drawdown:
+                max_drawdown = drawdown
+        return max_drawdown
+
+    @staticmethod
+    def calculate_profit_factor(trades: List[Dict[str, Any]]) -> float:
+        gross_profit = sum(trade.get('revenue', 0) for trade in trades if trade.get('action') == 'sell')
+        gross_loss = abs(sum(trade.get('cost', 0) for trade in trades if trade.get('action') == 'buy'))
+        
+        if gross_loss == 0:
+            return 10.0  # Р•СЃР»Рё РЅРµС‚ СѓР±С‹С‚РєРѕРІ
+        return gross_profit / gross_loss
+
+    @staticmethod
+    def calculate_win_rate(trades: List[Dict[str, Any]]) -> float:
+        if not trades:
+            return 0.0
+        profitable_trades = sum(1 for trade in trades if trade.get('revenue', 0) > trade.get('cost', 0))
+        return profitable_trades / len(trades)
+
+    @staticmethod
+    def calculate_consistency(returns: List[float]) -> float:
+        if len(returns) < 2:
+            return 0.0
+        return 1 - (np.std(returns) / np.mean(returns)) if np.mean(returns) != 0 else 0.0
+
+
+=== analysis\reporter.py ===
+
+
+
+=== analysis\visualizer.py ===
+
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+import numpy as np
+
+class RaceVisualizer:
+    def __init__(self, evolution_manager):
+        self.em = evolution_manager
+        self.fig, self.ax = plt.subplots(figsize=(15, 8))
+        self.scatter = None
+        self.annotation = None
+        
+    def setup_plot(self):
+        self.ax.set_xlim(0, 100)
+        self.ax.set_ylim(0, 100)
+        self.ax.set_title('Р­РІРѕР»СЋС†РёРѕРЅРЅР°СЏ РіРѕРЅРєР° С‚РѕСЂРіРѕРІС‹С… СЂРѕР±РѕС‚РѕРІ')
+        self.ax.set_xlabel('РџСЂРѕРёР·РІРѕРґРёС‚РµР»СЊРЅРѕСЃС‚СЊ')
+        self.ax.set_ylabel('Р РѕР±РѕС‚С‹')
+        
+    def update(self, frame):
+        if not self.em.population:
+            return
+            
+        # РћР±РЅРѕРІР»СЏРµРј РґР°РЅРЅС‹Рµ
+        profits = [robot.current_profit for robot in self.em.population]
+        sizes = [abs(profit) * 1000 for profit in profits]  # Р Р°Р·РјРµСЂ С‚РѕС‡РєРё Р·Р°РІРёСЃРёС‚ РѕС‚ РїСЂРёР±С‹Р»Рё
+        cycles = [robot.survived_cycles for robot in self.em.population]
+        children = [robot.children_count for robot in self.em.population]
+        ids = [robot.robot_id for robot in self.em.population]
+        
+        # РћС‡РёС‰Р°РµРј Рё РїРµСЂРµСЂРёСЃРѕРІС‹РІР°РµРј
+        self.ax.clear()
+        self.setup_plot()
+        
+        scatter = self.ax.scatter(profits, range(len(profits)), s=sizes, alpha=0.5)
+        
+        # Р”РѕР±Р°РІР»СЏРµРј Р°РЅРЅРѕС‚Р°С†РёРё
+        for i, (profit, cycle, child, id_val) in enumerate(zip(profits, cycles, children, ids)):
+            self.ax.annotate(f"ID:{id_val}\nC:{cycle}\nCh:{child}", 
+                            (profit, i), fontsize=8)
+        
+        return scatter,
+        
+    def animate(self):
+        ani = FuncAnimation(self.fig, self.update, interval=1000, blit=True)
+        plt.show()
+
+class MetricsVisualizer:
+    def plot_generation_metrics(self, evolution_manager):
+        generations = range(evolution_manager.generation + 1)
+        best_fitness = [gen['best_fitness'] for gen in evolution_manager.history]
+        avg_fitness = [gen['avg_fitness'] for gen in evolution_manager.history]
+        
+        plt.figure(figsize=(12, 6))
+        plt.plot(generations, best_fitness, label='Р›СѓС‡С€Р°СЏ РїСЂРёСЃРїРѕСЃРѕР±Р»РµРЅРЅРѕСЃС‚СЊ', marker='o')
+        plt.plot(generations, avg_fitness, label='РЎСЂРµРґРЅСЏСЏ РїСЂРёСЃРїРѕСЃРѕР±Р»РµРЅРЅРѕСЃС‚СЊ', marker='s')
+        plt.xlabel('РџРѕРєРѕР»РµРЅРёРµ')
+        plt.ylabel('РџСЂРёСЃРїРѕСЃРѕР±Р»РµРЅРЅРѕСЃС‚СЊ')
+        plt.title('Р­РІРѕР»СЋС†РёСЏ РїСЂРёСЃРїРѕСЃРѕР±Р»РµРЅРЅРѕСЃС‚Рё РїРѕ РїРѕРєРѕР»РµРЅРёСЏРј')
+        plt.legend()
+        plt.grid(True)
+        plt.savefig('fitness_evolution.png')
+        plt.close()
+
+
+=== config.json ===
+
+{
+    "testnet": true,
+    "symbol": "DOGEUSDT",
+    "timeframe": "5",
+    "account_type": "UNIFIED",
+    "generation_duration_minutes": 5,
+    "population_size": 20,
+    "initial_balance": 1000.0,
+    "global_trade_percentage": 0.1,
+    "fitness_weights": {
+        "profit": 1.0,
+        "sharpe_ratio": 0.8,
+        "max_drawdown": -1.5,
+        "profit_factor": 0.7,
+        "win_rate": 0.6,
+        "consistency": 0.5,
+        "risk_adjustment": 0.9
+    },
+    "fitness_threshold": 0.15
+}
+
+
+=== config\__init__.py ===
+
+
+
+=== config\settings.py ===
+
+# config/settings.py
+import json
+import os
+from typing import Dict, Any
+
+def load_config() -> Dict[str, Any]:
+    """
+    Р—Р°РіСЂСѓР·РєР° РєРѕРЅС„РёРіСѓСЂР°С†РёРё РёР· С„Р°Р№Р»Р° config.json
+    
+    Returns:
+        Dict[str, Any]: РЎР»РѕРІР°СЂСЊ СЃ РЅР°СЃС‚СЂРѕР№РєР°РјРё РєРѕРЅС„РёРіСѓСЂР°С†РёРё
+    """
+    config_path = os.path.join(os.path.dirname(__file__), '..', 'config.json')
+    
+    try:
+        with open(config_path, 'r') as f:
+            config = json.load(f)
+        return config
+    except FileNotFoundError:
+        print(f"Р¤Р°Р№Р» РєРѕРЅС„РёРіСѓСЂР°С†РёРё {config_path} РЅРµ РЅР°Р№РґРµРЅ. РСЃРїРѕР»СЊР·СѓСЋС‚СЃСЏ РЅР°СЃС‚СЂРѕР№РєРё РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ.")
+        return get_default_config()
+    except json.JSONDecodeError:
+        print(f"РћС€РёР±РєР° РїР°СЂСЃРёРЅРіР° JSON РІ С„Р°Р№Р»Рµ {config_path}. РСЃРїРѕР»СЊР·СѓСЋС‚СЃСЏ РЅР°СЃС‚СЂРѕР№РєРё РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ.")
+        return get_default_config()
+
+def get_default_config() -> Dict[str, Any]:
+    """
+    Р’РѕР·РІСЂР°С‰Р°РµС‚ РєРѕРЅС„РёРіСѓСЂР°С†РёСЋ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ
+    
+    Returns:
+        Dict[str, Any]: РЎР»РѕРІР°СЂСЊ СЃ РЅР°СЃС‚СЂРѕР№РєР°РјРё РєРѕРЅС„РёРіСѓСЂР°С†РёРё РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ
+    """
+    return {
+        "testnet": True,
+        "symbol": "BTCUSDT",
+        "timeframe": "5",
+        "account_type": "UNIFIED",
+        "generation_duration_minutes": 5,
+        "population_size": 50,
+        "initial_balance": 1000.0,
+        "global_trade_percentage": 0.1,
+        "fitness_weights": {
+            "profit": 1.0,
+            "sharpe_ratio": 0.5,
+            "max_drawdown": -0.5
+        }
+    }
+
+# Р”Р»СЏ С‚РµСЃС‚РёСЂРѕРІР°РЅРёСЏ
+if __name__ == "__main__":
+    config = load_config()
+    print("Р—Р°РіСЂСѓР¶РµРЅРЅР°СЏ РєРѕРЅС„РёРіСѓСЂР°С†РёСЏ:")
+    print(json.dumps(config, indent=2))
+
+
+=== core\__init__.py ===
+
+
+
+=== core\bybit_client.py ===
+
+# core/bybit_client.py
+from pybit.unified_trading import HTTP
+import os
+from dotenv import load_dotenv
+import logging
+from typing import Dict, Any  # Р”РѕР±Р°РІР»СЏРµРј РЅРµРѕР±С…РѕРґРёРјС‹Рµ РёРјРїРѕСЂС‚С‹
+from datetime import datetime
+
+# Р—Р°РіСЂСѓР·РєР° РїРµСЂРµРјРµРЅРЅС‹С… РѕРєСЂСѓР¶РµРЅРёСЏ
+load_dotenv()
+
+logger = logging.getLogger('bybit_client')
+
+class BybitClient:
+    def __init__(self, testnet=True):
+        self.testnet = testnet
+        self.api_key = os.getenv('BYBIT_API_KEY')
+        self.api_secret = os.getenv('BYBIT_API_SECRET')
+        
+        # РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ СЃРµСЃСЃРёРё
+        self.session = HTTP(
+            testnet=self.testnet,
+            api_key=self.api_key,
+            api_secret=self.api_secret,
+        )
+        
+        logger.info("BybitClient РёРЅРёС†РёР°Р»РёР·РёСЂРѕРІР°РЅ")
+    
+    def get_account_balance(self):
+        """РџРѕР»СѓС‡РµРЅРёРµ Р±Р°Р»Р°РЅСЃР° Р°РєРєР°СѓРЅС‚Р°"""
+        try:
+            response = self.session.get_wallet_balance(accountType="UNIFIED")
+            if response and 'result' in response:
+                # Р”Р»СЏ Unified Trading Account Р±Р°Р»Р°РЅСЃ РЅР°С…РѕРґРёС‚СЃСЏ РїРѕ СЌС‚РѕРјСѓ РїСѓС‚Рё
+                total_balance = response['result']['list'][0]['totalWalletBalance']
+                return float(total_balance)
+            return 0.0
+        except Exception as e:
+            logger.error(f"РћС€РёР±РєР° РїСЂРё РїРѕР»СѓС‡РµРЅРёРё Р±Р°Р»Р°РЅСЃР°: {e}")
+            return 0.0
+    
+    def get_ticker(self, symbol):
+        """РџРѕР»СѓС‡РµРЅРёРµ РёРЅС„РѕСЂРјР°С†РёРё Рѕ С‚РёРєРµСЂРµ"""
+        try:
+            response = self.session.get_tickers(
+                category="linear",
+                symbol=symbol
+            )
+            print(f"Raw ticker response: {response}")  # Р”Р»СЏ РѕС‚Р»Р°РґРєРё
+            
+            if (response and 'result' in response and 
+                'list' in response['result'] and 
+                response['result']['list']):
+                return response
+            return None
+        except Exception as e:
+            logger.error(f"РћС€РёР±РєР° РїСЂРё РїРѕР»СѓС‡РµРЅРёРё С‚РёРєРµСЂР°: {e}")
+            return None
+    
+    def get_klines(self, symbol, interval, limit=100):
+        """РџРѕР»СѓС‡РµРЅРёРµ РёСЃС‚РѕСЂРёС‡РµСЃРєРёС… РґР°РЅРЅС‹С… (СЃРІРµС‡РµР№)"""
+        try:
+            response = self.session.get_kline(
+                category="linear",
+                symbol=symbol,
+                interval=interval,
+                limit=limit
+            )
+            if response and 'result' in response:
+                return response['result']['list']
+            return []
+        except Exception as e:
+            logger.error(f"РћС€РёР±РєР° РїСЂРё РїРѕР»СѓС‡РµРЅРёРё СЃРІРµС‡РµР№: {e}")
+            return []
+    
+    def place_order(self, symbol: str, side: str, order_type: str, qty: float, price: float = None) -> Dict[str, Any]:
+        """Р Р°Р·РјРµС‰РµРЅРёРµ РѕСЂРґРµСЂР° СЃ РіРёР±РєРѕР№ РїСЂРѕРІРµСЂРєРѕР№ РјРёРЅРёРјР°Р»СЊРЅРѕРіРѕ РѕР±СЉРµРјР°"""
+        try:
+            # Р”РѕР±Р°РІРёРј Р»РѕРіРёСЂРѕРІР°РЅРёРµ РїРµСЂРµРґ СЂР°Р·РјРµС‰РµРЅРёРµРј
+            logger.info(f"РџРѕРїС‹С‚РєР° СЂР°Р·РјРµС‰РµРЅРёСЏ РѕСЂРґРµСЂР°: {side} {qty} {symbol} РїРѕ С†РµРЅРµ {price}")
+            # РћРїСЂРµРґРµР»СЏРµРј РјРёРЅРёРјР°Р»СЊРЅС‹Р№ РѕР±СЉРµРј РІ Р·Р°РІРёСЃРёРјРѕСЃС‚Рё РѕС‚ СЃРёРјРІРѕР»Р°
+            min_qty_rules = {
+                'BTCUSDT': 0.001,   # РњРёРЅРёРјР°Р»СЊРЅС‹Р№ РѕР±СЉРµРј РґР»СЏ BTCUSDT
+                'DOGEUSDT': 100.0,   # РњРёРЅРёРјР°Р»СЊРЅС‹Р№ РѕР±СЉРµРј РґР»СЏ DOGEUSDT (100 DOGE)
+                # Р”РѕР±Р°РІСЊС‚Рµ РґСЂСѓРіРёРµ РїР°СЂС‹ РїРѕ РјРµСЂРµ РЅРµРѕР±С…РѕРґРёРјРѕСЃС‚Рё
+            }
+            
+            # РџРѕР»СѓС‡Р°РµРј РјРёРЅРёРјР°Р»СЊРЅС‹Р№ РѕР±СЉРµРј РґР»СЏ СЃРёРјРІРѕР»Р° РёР»Рё РёСЃРїРѕР»СЊР·СѓРµРј Р·РЅР°С‡РµРЅРёРµ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ
+            min_qty = min_qty_rules.get(symbol, 1.0)  # Р—РЅР°С‡РµРЅРёРµ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ - 1
+            
+            if qty < min_qty:
+                logger.warning(f"РћР±СЉРµРј {qty} РјРµРЅСЊС€Рµ РјРёРЅРёРјР°Р»СЊРЅРѕРіРѕ {min_qty} РґР»СЏ {symbol}")
+                # Р”Р»СЏ РЅРµРєРѕС‚РѕСЂС‹С… РїР°СЂ РјРѕР¶РЅРѕ СѓРІРµР»РёС‡РёС‚СЊ РѕР±СЉРµРј РґРѕ РјРёРЅРёРјР°Р»СЊРЅРѕРіРѕ
+                qty = min_qty
+                
+            # РџСЂРѕРІРµСЂСЏРµРј, С‡С‚Рѕ С†РµРЅР° СѓРєР°Р·Р°РЅР° РґР»СЏ Р»РёРјРёС‚РЅС‹С… РѕСЂРґРµСЂРѕРІ
+            if order_type == "Limit" and price is None:
+                logger.error("Р”Р»СЏ Р»РёРјРёС‚РЅРѕРіРѕ РѕСЂРґРµСЂР° РґРѕР»Р¶РЅР° Р±С‹С‚СЊ СѓРєР°Р·Р°РЅР° С†РµРЅР°")
+                return {}
+            
+            # РџСЂРѕРІРµСЂСЏРµРј, С‡С‚Рѕ С†РµРЅР° РїРѕР»РѕР¶РёС‚РµР»СЊРЅР°СЏ
+            if price is not None and price <= 0:
+                logger.error(f"РќРµРєРѕСЂСЂРµРєС‚РЅР°СЏ С†РµРЅР°: {price}")
+                return {}
+            
+            order_params = {
+                "category": "linear",
+                "symbol": symbol,
+                "side": side,
+                "orderType": order_type,
+                "qty": str(qty),
+                "timeInForce": "GTC"
+            }
+            
+            if price:
+                order_params["price"] = str(price)
+                
+            response = self.session.place_order(**order_params)
+            if response and 'result' in response:
+                logger.info(f"РћСЂРґРµСЂ СЂР°Р·РјРµС‰РµРЅ: {response['result']['orderId']}")
+                return response['result']
+            return {}
+        except Exception as e:
+            # РЈР±РёСЂР°РµРј emoji РёР· СЃРѕРѕР±С‰РµРЅРёСЏ РѕР± РѕС€РёР±РєРµ РґР»СЏ РёР·Р±РµР¶Р°РЅРёСЏ РїСЂРѕР±Р»РµРј СЃ РєРѕРґРёСЂРѕРІРєРѕР№
+            error_msg = str(e).replace('вњ…', '').replace('рџ’°', '').replace('в†’', '->')
+            logger.error(f"РћС€РёР±РєР° РїСЂРё СЂР°Р·РјРµС‰РµРЅРёРё РѕСЂРґРµСЂР°: {error_msg}")
+            return {}
+    
+    def get_open_orders(self, symbol):
+        """РџРѕР»СѓС‡РµРЅРёРµ СЃРїРёСЃРєР° РѕС‚РєСЂС‹С‚С‹С… РѕСЂРґРµСЂРѕРІ"""
+        try:
+            response = self.session.get_open_orders(
+                category="linear",
+                symbol=symbol
+            )
+            if response and 'result' in response:
+                return response['result']['list']
+            return []
+        except Exception as e:
+            logger.error(f"РћС€РёР±РєР° РїСЂРё РїРѕР»СѓС‡РµРЅРёРё РѕСЂРґРµСЂРѕРІ: {e}")
+            return []
+    
+    def cancel_order(self, symbol, order_id):
+        """РћС‚РјРµРЅР° РѕСЂРґРµСЂР°"""
+        try:
+            response = self.session.cancel_order(
+                category="linear",
+                symbol=symbol,
+                orderId=order_id
+            )
+            if response and 'result' in response:
+                logger.info(f"РћСЂРґРµСЂ РѕС‚РјРµРЅРµРЅ: {response['result']}")
+                return response['result']
+            return None
+        except Exception as e:
+            logger.error(f"РћС€РёР±РєР° РїСЂРё РѕС‚РјРµРЅРµ РѕСЂРґРµСЂР°: {e}")
+            return None
+    
+    def get_positions(self, symbol):
+        """РџРѕР»СѓС‡РµРЅРёРµ РёРЅС„РѕСЂРјР°С†РёРё Рѕ РїРѕР·РёС†РёСЏС…"""
+        try:
+            response = self.session.get_positions(
+                category="linear",
+                symbol=symbol
+            )
+            if response and 'result' in response:
+                return response['result']['list']
+            return []
+        except Exception as e:
+            logger.error(f"РћС€РёР±РєР° РїСЂРё РїРѕР»СѓС‡РµРЅРёРё РїРѕР·РёС†РёР№: {e}")
+            return []
+    
+    def get_api_key_info(self):
+        """РџРѕР»СѓС‡РµРЅРёРµ РёРЅС„РѕСЂРјР°С†РёРё Рѕ API РєР»СЋС‡Рµ"""
+        try:
+            response = self.session.get_api_key_information()
+            if response and 'result' in response:
+                return response['result']
+            return None
+        except Exception as e:
+            logger.error(f"РћС€РёР±РєР° РїСЂРё РїРѕР»СѓС‡РµРЅРёРё РёРЅС„РѕСЂРјР°С†РёРё Рѕ API РєР»СЋС‡Рµ: {e}")
+            return None
+        
+    def get_market_data(self) -> Dict[str, Any]:
+        """РџРѕР»СѓС‡РµРЅРёРµ С‚РµРєСѓС‰РёС… СЂС‹РЅРѕС‡РЅС‹С… РґР°РЅРЅС‹С… (РІСЂРµРјРµРЅРЅР°СЏ Р·Р°РіР»СѓС€РєР°)"""
+        try:
+            # РџС‹С‚Р°РµРјСЃСЏ РїРѕР»СѓС‡РёС‚СЊ СЂРµР°Р»СЊРЅС‹Рµ РґР°РЅРЅС‹Рµ
+            ticker = self.client.get_ticker(self.config['symbol'])
+            
+            if ticker and 'result' in ticker and 'list' in ticker['result'] and ticker['result']['list']:
+                ticker_data = ticker['result']['list'][0]
+                current_price = float(ticker_data.get('lastPrice', 50000.0))
+            else:
+                # РСЃРїРѕР»СЊР·СѓРµРј Р·Р°РіР»СѓС€РєСѓ РµСЃР»Рё РЅРµ СѓРґР°Р»РѕСЃСЊ РїРѕР»СѓС‡РёС‚СЊ РґР°РЅРЅС‹Рµ
+                current_price = 50000.0 + (self.generation * 100)  # РРјРёС‚РёСЂСѓРµРј РґРІРёР¶РµРЅРёРµ С†РµРЅС‹
+                logger.warning("РСЃРїРѕР»СЊР·СѓСЋС‚СЃСЏ С‚РµСЃС‚РѕРІС‹Рµ РґР°РЅРЅС‹Рµ")
+            
+            # Р Р°СЃС‡РµС‚ РґРѕРїРѕР»РЅРёС‚РµР»СЊРЅС‹С… РїРѕРєР°Р·Р°С‚РµР»РµР№
+            global_params = {
+                'current_price': current_price,
+                'trend_direction': 'bullish' if current_price > 50000 else 'bearish',
+                'volatility': 0.02,
+                'support_level': current_price * 0.98,
+                'resistance_level': current_price * 1.02,
+                'timestamp': datetime.now()
+            }
+            
+            return global_params
+            
+        except Exception as e:
+            logger.error(f"РћС€РёР±РєР° РїСЂРё РїРѕР»СѓС‡РµРЅРёРё СЂС‹РЅРѕС‡РЅС‹С… РґР°РЅРЅС‹С…: {e}")
+            # Р’РѕР·РІСЂР°С‰Р°РµРј С‚РµСЃС‚РѕРІС‹Рµ РґР°РЅРЅС‹Рµ
+            return {
+                'current_price': 50000.0 + (self.generation * 100),
+                'trend_direction': 'bullish',
+                'volatility': 0.02,
+                'support_level': 49000.0,
+                'resistance_level': 51000.0,
+                'timestamp': datetime.now()
+            }
+
+
+=== core\master.py ===
+
+import time
+import json
+from datetime import datetime
+from typing import List, Dict, Any
+from analysis.metrics import AdvancedMetrics
+import numpy as np
+from .worker import Robot
+from .strategies import SimpleStrategy
+from .bybit_client import BybitClient
+from evolution.genes import mutate, crossover
+from evolution.selection import select_parents
+from utils.logger import setup_logger
+
+logger = setup_logger('evolution_manager')
+
+class EvolutionManager:
+    def __init__(self, config: Dict[str, Any], client: BybitClient):
+        self.config = config
+        self.client = client  # РСЃРїРѕР»СЊР·СѓРµРј РїРµСЂРµРґР°РЅРЅС‹Р№ РєР»РёРµРЅС‚
+        self.population: List[Robot] = []
+        self.generation = 0
+        self.best_robots = []
+        self.history = []
+        
+        # РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ СЃС‚СЂР°С‚РµРіРёРё
+        self.strategy = SimpleStrategy(self.client)
+        
+        # РЎРѕР·РґР°РЅРёРµ РЅР°С‡Р°Р»СЊРЅРѕР№ РїРѕРїСѓР»СЏС†РёРё
+        self.create_initial_population()
+        
+    def create_initial_population(self):
+        """РЎРѕР·РґР°РЅРёРµ РЅР°С‡Р°Р»СЊРЅРѕР№ РїРѕРїСѓР»СЏС†РёРё СЂРѕР±РѕС‚РѕРІ"""
+        logger.info(f"РЎРѕР·РґР°РЅРёРµ РЅР°С‡Р°Р»СЊРЅРѕР№ РїРѕРїСѓР»СЏС†РёРё РёР· {self.config['population_size']} СЂРѕР±РѕС‚РѕРІ")
+        
+        for i in range(self.config['population_size']):
+            robot = Robot(
+                robot_id=i,
+                generation_born=self.generation,
+                initial_balance=self.config['initial_balance'],
+                strategy=self.strategy,
+                gene=self._generate_random_gene()
+            )
+            self.population.append(robot)
+            
+        logger.info("РќР°С‡Р°Р»СЊРЅР°СЏ РїРѕРїСѓР»СЏС†РёСЏ СЃРѕР·РґР°РЅР°")
+    
+    def _generate_random_gene(self) -> Dict[str, Any]:
+        """Р“РµРЅРµСЂР°С†РёСЏ СЃР»СѓС‡Р°Р№РЅРѕРіРѕ РіРµРЅР° РґР»СЏ СЂРѕР±РѕС‚Р°"""
+        return {
+            'strategy_type': 'decision_tree',
+            'decision_tree': self._generate_random_decision_tree(),
+            'trade_percentage': np.random.uniform(0.01, 0.1),  # РЎР»СѓС‡Р°Р№РЅС‹Р№ % РѕС‚ Р±Р°Р»Р°РЅСЃР°
+            'risk_appetite': np.random.uniform(0.1, 0.9),     # РЈСЂРѕРІРµРЅСЊ СЃРєР»РѕРЅРЅРѕСЃС‚Рё Рє СЂРёСЃРєСѓ
+            'max_trade_duration': np.random.randint(1, 10)    # РњР°РєСЃ. РґР»РёС‚РµР»СЊРЅРѕСЃС‚СЊ СЃРґРµР»РєРё РІ РјРёРЅСѓС‚Р°С…
+        }
+    
+    def _generate_random_decision_tree(self) -> List[Dict[str, Any]]:
+        """Р“РµРЅРµСЂР°С†РёСЏ СЃР»СѓС‡Р°Р№РЅРѕРіРѕ РґРµСЂРµРІР° СЂРµС€РµРЅРёР№"""
+        conditions = [
+            {'indicator': 'rsi', 'operator': '<', 'value': 30, 'action': 'buy'},
+            {'indicator': 'rsi', 'operator': '>', 'value': 70, 'action': 'sell'},
+            {'indicator': 'price_above_ema', 'operator': '==', 'value': True, 'action': 'buy'},
+            {'indicator': 'price_below_ema', 'operator': '==', 'value': True, 'action': 'sell'},
+            {'indicator': 'high_volume', 'operator': '==', 'value': True, 'action': 'buy'},
+            {'indicator': 'trend_alignment', 'operator': '==', 'value': True, 'action': 'buy'},
+        ]
+        
+        # Р’С‹Р±РёСЂР°РµРј СЃР»СѓС‡Р°Р№РЅРѕРµ РїРѕРґРјРЅРѕР¶РµСЃС‚РІРѕ СѓСЃР»РѕРІРёР№
+        num_conditions = np.random.randint(2, len(conditions))
+        return list(np.random.choice(conditions, num_conditions, replace=False))
+    
+    def run_generation(self):
+        """Р—Р°РїСѓСЃРє РѕРґРЅРѕРіРѕ РїРѕРєРѕР»РµРЅРёСЏ (С‚РѕСЂРіРѕРІРѕРіРѕ С†РёРєР»Р°)"""
+        logger.info(f"Р—Р°РїСѓСЃРє РїРѕРєРѕР»РµРЅРёСЏ {self.generation}")
+        start_time = datetime.now()
+        
+        # Р—Р°РїСѓСЃРє С‚РѕСЂРіРѕРІР»Рё РґР»СЏ РІСЃРµС… СЂРѕР±РѕС‚РѕРІ
+        for minute in range(self.config['generation_duration_minutes']):
+            logger.info(f"РњРёРЅСѓС‚Р° {minute + 1} РёР· {self.config['generation_duration_minutes']}")
+            
+            # РџРѕР»СѓС‡РµРЅРёРµ С‚РµРєСѓС‰РёС… СЂС‹РЅРѕС‡РЅС‹С… РґР°РЅРЅС‹С…
+            market_data = self.get_market_data()
+            
+            for robot in self.population:
+                # РљР°Р¶РґС‹Р№ СЂРѕР±РѕС‚ РїСЂРёРЅРёРјР°РµС‚ С‚РѕСЂРіРѕРІРѕРµ СЂРµС€РµРЅРёРµ
+                robot.trade(self.config['symbol'], market_data)
+                
+                # РћР±РЅРѕРІР»СЏРµРј РёРЅС„РѕСЂРјР°С†РёСЋ Рѕ РїСЂРёР±С‹Р»Рё
+                robot.update_profit(market_data['current_price'])
+            
+            # РџР°СѓР·Р° РјРµР¶РґСѓ РјРёРЅСѓС‚Р°РјРё (РІ СЂРµР°Р»СЊРЅРѕР№ С‚РѕСЂРіРѕРІР»Рµ РЅСѓР¶РЅРѕ РёСЃРїРѕР»СЊР·РѕРІР°С‚СЊ С‚РѕС‡РЅРѕРµ РІСЂРµРјСЏ)
+            time.sleep(1)  # Р”Р»СЏ С‚РµСЃС‚Р° РёСЃРїРѕР»СЊР·СѓРµРј 1 СЃРµРєСѓРЅРґСѓ РІРјРµСЃС‚Рѕ 1 РјРёРЅСѓС‚С‹
+        
+        # РћС†РµРЅРєР° СЂРµР·СѓР»СЊС‚Р°С‚РѕРІ РїРѕРєРѕР»РµРЅРёСЏ
+        self.evaluate_generation()
+        
+        # РЎРѕР·РґР°РЅРёРµ РЅРѕРІРѕРіРѕ РїРѕРєРѕР»РµРЅРёСЏ
+        self.create_new_generation()
+        
+        # РЎРѕС…СЂР°РЅРµРЅРёРµ РёСЃС‚РѕСЂРёРё
+        self.save_generation_history(start_time)
+        
+        logger.info(f"РџРѕРєРѕР»РµРЅРёРµ {self.generation} Р·Р°РІРµСЂС€РµРЅРѕ")
+        self.generation += 1
+    
+    def get_market_data(self) -> Dict[str, Any]:
+        """РџРѕР»СѓС‡РµРЅРёРµ С‚РµРєСѓС‰РёС… СЂС‹РЅРѕС‡РЅС‹С… РґР°РЅРЅС‹С…"""
+        try:
+            ticker = self.client.get_ticker(self.config['symbol'])
+            
+            # РћС‚Р»Р°РґРѕС‡РЅР°СЏ РёРЅС„РѕСЂРјР°С†РёСЏ РґР»СЏ РїРѕРЅРёРјР°РЅРёСЏ СЃС‚СЂСѓРєС‚СѓСЂС‹ РѕС‚РІРµС‚Р°
+            print(f"Ticker response: {ticker}")
+            
+            # РџРѕР»СѓС‡Р°РµРј С‚РµРєСѓС‰СѓСЋ С†РµРЅСѓ РёР· РїСЂР°РІРёР»СЊРЅРѕРіРѕ РїРѕР»СЏ
+            # РЎС‚СЂСѓРєС‚СѓСЂР° РѕС‚РІРµС‚Р°: {'result': {'list': [{'lastPrice': '50000.00', ...}]}}
+            if ticker and 'result' in ticker and 'list' in ticker['result']:
+                ticker_data = ticker['result']['list'][0]
+                current_price = float(ticker_data.get('lastPrice', 0))
+            else:
+                current_price = 0
+                logger.warning("РќРµ СѓРґР°Р»РѕСЃСЊ РїРѕР»СѓС‡РёС‚СЊ РґР°РЅРЅС‹Рµ С‚РёРєРµСЂР°")
+            
+            # РџРѕР»СѓС‡Р°РµРј РёСЃС‚РѕСЂРёС‡РµСЃРєРёРµ РґР°РЅРЅС‹Рµ
+            klines = self.client.get_klines(
+                self.config['symbol'], 
+                self.config['timeframe'], 
+                limit=50
+            )
+            
+            # Р Р°СЃС‡РµС‚ РґРѕРїРѕР»РЅРёС‚РµР»СЊРЅС‹С… РїРѕРєР°Р·Р°С‚РµР»РµР№ (Р·Р°РіР»СѓС€РєРё РґР»СЏ С‚РµСЃС‚Р°)
+            global_params = {
+                'current_price': current_price,
+                'trend_direction': 'bullish',  # Р—Р°РіР»СѓС€РєР°
+                'volatility': 0.02,            # Р—Р°РіР»СѓС€РєР°
+                'support_level': current_price * 0.98,
+                'resistance_level': current_price * 1.02,
+                'ticker_data': ticker_data if 'ticker_data' in locals() else {}
+            }
+            
+            return global_params
+            
+        except Exception as e:
+            logger.error(f"РћС€РёР±РєР° РїСЂРё РїРѕР»СѓС‡РµРЅРёРё СЂС‹РЅРѕС‡РЅС‹С… РґР°РЅРЅС‹С…: {e}")
+            # Р’РѕР·РІСЂР°С‰Р°РµРј РґР°РЅРЅС‹Рµ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ РІ СЃР»СѓС‡Р°Рµ РѕС€РёР±РєРё
+            return {
+                'current_price': 50000.0,  # Р—РЅР°С‡РµРЅРёРµ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ
+                'trend_direction': 'bullish',
+                'volatility': 0.02,
+                'support_level': 49000.0,
+                'resistance_level': 51000.0
+            }
+    
+    def evaluate_generation(self):
+        """Р Р°СЃС€РёСЂРµРЅРЅР°СЏ РѕС†РµРЅРєР° СЂРµР·СѓР»СЊС‚Р°С‚РѕРІ РїРѕРєРѕР»РµРЅРёСЏ СЃ multiple РјРµС‚СЂРёРєР°РјРё"""
+        logger.info("Р Р°СЃС€РёСЂРµРЅРЅР°СЏ РѕС†РµРЅРєР° СЂРµР·СѓР»СЊС‚Р°С‚РѕРІ РїРѕРєРѕР»РµРЅРёСЏ")
+        
+        for robot in self.population:
+            # Р Р°СЃС‡РµС‚ РѕСЃРЅРѕРІРЅС‹С… РјРµС‚СЂРёРє
+            profit = robot.current_profit
+            returns = robot.returns
+            
+            # Р Р°СЃС€РёСЂРµРЅРЅС‹Рµ РјРµС‚СЂРёРєРё
+            sharpe_ratio = AdvancedMetrics.calculate_sharpe_ratio(returns)
+            max_drawdown = AdvancedMetrics.calculate_max_drawdown(robot.balance_history)
+            profit_factor = AdvancedMetrics.calculate_profit_factor(robot.trades)
+            win_rate = AdvancedMetrics.calculate_win_rate(robot.trades)
+            consistency = AdvancedMetrics.calculate_consistency(returns)
+            
+            # Р‘Р°Р·РѕРІС‹Рµ РєРѕРјРїРѕРЅРµРЅС‚С‹
+            profit_component = profit / robot.initial_balance
+            risk_component = 1 - max_drawdown
+            
+            # Р’Р·РІРµС€РµРЅРЅР°СЏ fitness С„СѓРЅРєС†РёСЏ
+            robot.fitness = (
+                self.config['fitness_weights']['profit'] * profit_component +
+                self.config['fitness_weights']['sharpe_ratio'] * sharpe_ratio +
+                self.config['fitness_weights']['max_drawdown'] * risk_component +
+                self.config['fitness_weights']['profit_factor'] * profit_factor +
+                self.config['fitness_weights']['win_rate'] * win_rate +
+                self.config['fitness_weights']['consistency'] * consistency
+            )
+            
+            # Р›РѕРіРёСЂРѕРІР°РЅРёРµ РјРµС‚СЂРёРє РґР»СЏ РѕС‚Р»Р°РґРєРё
+            logger.debug(f"Р РѕР±РѕС‚ {robot.robot_id}: "
+                        f"РџСЂРёР±С‹Р»СЊ={profit:.2f}, "
+                        f"РЁР°СЂРї={sharpe_ratio:.3f}, "
+                        f"РџСЂРѕСЃР°РґРєР°={max_drawdown:.3f}, "
+                        f"РџСЂРѕС„. С„Р°РєС‚РѕСЂ={profit_factor:.3f}, "
+                        f"Р’РёРЅСЂРµР№С‚={win_rate:.3f}, "
+                        f"РљРѕРЅСЃРёСЃС‚РµРЅС‚РЅРѕСЃС‚СЊ={consistency:.3f}, "
+                        f"Р¤РёС‚РЅРµСЃ={robot.fitness:.6f}")
+        
+        # РЎРѕСЂС‚РёСЂРѕРІРєР° РїРѕ fitness
+        self.population.sort(key=lambda x: x.fitness, reverse=True)
+        
+        # РћС‚Р±РѕСЂ Р»СѓС‡С€РёС…
+        best_robot = self.population[0]
+        logger.info(f"Р›СѓС‡С€РёР№ СЂРѕР±РѕС‚ РїРѕРєРѕР»РµРЅРёСЏ: ID {best_robot.robot_id}, "
+                   f"Р¤РёС‚РЅРµСЃ: {best_robot.fitness:.6f}, "
+                   f"РџСЂРёР±С‹Р»СЊ: {best_robot.current_profit:.2f}")
+    
+    def create_new_generation(self):
+        """РЎРѕР·РґР°РЅРёРµ РЅРѕРІРѕРіРѕ РїРѕРєРѕР»РµРЅРёСЏ СЂРѕР±РѕС‚РѕРІ"""
+        logger.info("РЎРѕР·РґР°РЅРёРµ РЅРѕРІРѕРіРѕ РїРѕРєРѕР»РµРЅРёСЏ")
+        
+        # РћС‚Р±РѕСЂ СЂРѕРґРёС‚РµР»РµР№
+        parents = select_parents(self.population, elite_size=5)
+        
+        # РЎРѕР·РґР°РЅРёРµ РЅРѕРІРѕРіРѕ РїРѕРєРѕР»РµРЅРёСЏ
+        new_population = []
+        
+        # Р”РѕР±Р°РІР»СЏРµРј СЌР»РёС‚РЅС‹С… СЂРѕР±РѕС‚РѕРІ Р±РµР· РёР·РјРµРЅРµРЅРёР№
+        for i in range(min(5, len(parents))):
+            elite_robot = parents[i]
+            elite_robot.survived_cycles += 1
+            new_population.append(elite_robot)
+        
+        # РЎРѕР·РґР°РµРј РїРѕС‚РѕРјРєРѕРІ РѕС‚ Р»СѓС‡С€РёС… СЂРѕР±РѕС‚РѕРІ
+        while len(new_population) < self.config['population_size']:
+            parent1, parent2 = np.random.choice(parents[:10], 2, replace=False)
+            child_gene = crossover(parent1.gene, parent2.gene)
+            child_gene = mutate(child_gene)
+            
+            child = Robot(
+                robot_id=len(new_population),
+                generation_born=self.generation + 1,
+                initial_balance=self.config['initial_balance'],
+                strategy=self.strategy,
+                gene=child_gene
+            )
+            
+            # РќР°СЃР»РµРґРѕРІР°РЅРёРµ "РѕРїС‹С‚Р°" РѕС‚ СЂРѕРґРёС‚РµР»РµР№
+            child.survived_cycles = max(parent1.survived_cycles, parent2.survived_cycles) - 1
+            
+            new_population.append(child)
+        
+        self.population = new_population
+    
+    def save_generation_history(self, start_time):
+        """РЎРѕС…СЂР°РЅРµРЅРёРµ РёСЃС‚РѕСЂРёРё РїРѕРєРѕР»РµРЅРёСЏ"""
+        generation_info = {
+            'generation': self.generation,
+            'start_time': start_time.isoformat(),
+            'end_time': datetime.now().isoformat(),
+            'best_robot': {
+                'id': self.population[0].robot_id,
+                'profit': self.population[0].current_profit,
+                'fitness': self.population[0].fitness
+            },
+            'avg_profit': np.mean([r.current_profit for r in self.population]),
+            'avg_fitness': np.mean([r.fitness for r in self.population])
+        }
+        
+        self.history.append(generation_info)
+        
+        # РЎРѕС…СЂР°РЅРµРЅРёРµ РІ С„Р°Р№Р»
+        with open(f'data/generation_{self.generation}.json', 'w') as f:
+            json.dump(generation_info, f, indent=2)
+    
+    def save_final_results(self):
+        """РЎРѕС…СЂР°РЅРµРЅРёРµ С„РёРЅР°Р»СЊРЅС‹С… СЂРµР·СѓР»СЊС‚Р°С‚РѕРІ СЌРІРѕР»СЋС†РёРё"""
+        results = {
+            'total_generations': self.generation,
+            'best_fitness': self.best_robots[-1].fitness if self.best_robots else 0,
+            'best_profit': self.best_robots[-1].current_profit if self.best_robots else 0,
+            'final_population_size': len(self.population),
+            'execution_time': datetime.now() - self.start_time
+        }
+        
+        with open('data/final_results.json', 'w') as f:
+            json.dump(results, f, indent=2)
+
+    def should_continue_evolution(self):
+        """РћРїСЂРµРґРµР»РµРЅРёРµ РЅРµРѕР±С…РѕРґРёРјРѕСЃС‚Рё РїСЂРѕРґРѕР»Р¶РµРЅРёСЏ СЌРІРѕР»СЋС†РёРё"""
+        if self.generation >= self.config.get('max_generations', 20):
+            return False
+            
+        if (self.best_robots and 
+            self.best_robots[-1].fitness > self.config.get('target_fitness', 0.3)):
+            return False
+            
+        return True
+
+    def should_continue_evolution(self) -> bool:
+        """РџСЂРѕРІРµСЂРєР° СѓСЃР»РѕРІРёР№ РїСЂРѕРґРѕР»Р¶РµРЅРёСЏ СЌРІРѕР»СЋС†РёРё"""
+        if self.generation >= 100:  # РњР°РєСЃРёРјР°Р»СЊРЅРѕРµ РєРѕР»РёС‡РµСЃС‚РІРѕ РїРѕРєРѕР»РµРЅРёР№
+            return False
+        
+        # РџСЂРѕРІРµСЂРєР° С†РµР»РµРІРѕР№ РїСЂРёР±С‹Р»Рё
+        if len(self.best_robots) > 0:
+            last_profit = self.best_robots[-1].current_profit
+            if last_profit >= self.config['initial_balance'] * 0.1:  # 10% РїСЂРёР±С‹Р»Рё
+                return True
+        
+        return True
+
+
+=== core\strategies.py ===
+
+import talib
+import random
+import numpy as np
+from utils.logger import setup_logger
+logger = setup_logger('robot')
+
+class SimpleStrategy:
+    def __init__(self, client):
+        self.client = client
+        self.name = "simple_random"
+        
+    def generate_signal(self, symbol, market_data, robot=None):
+        """Р“РµРЅРµСЂР°С†РёСЏ С‚РѕСЂРіРѕРІРѕРіРѕ СЃРёРіРЅР°Р»Р° СЃ РёСЃРїРѕР»СЊР·РѕРІР°РЅРёРµРј % РѕС‚ Р±Р°Р»Р°РЅСЃР°"""
+        current_price = market_data['current_price']
+        
+        # РЈРІРµР»РёС‡РёРј С‡Р°СЃС‚РѕС‚Сѓ С‚РѕСЂРіРѕРІ РґР»СЏ Р±РѕР»РµРµ volatile Р°РєС‚РёРІР° like DOGE
+        decision = random.choice(['buy', 'sell', 'hold', 'buy', 'sell'])  # Р§Р°С‰Рµ С‚РѕСЂРіСѓРµРј
+              
+         # РЈРІРµР»РёС‡РёРј Р±Р°Р·РѕРІС‹Р№ РїСЂРѕС†РµРЅС‚ С‚РѕСЂРіРѕРІР»Рё РґР»СЏ DOGE
+        base_trade_percentage = 0.1  # 10% РІРјРµСЃС‚Рѕ 5%
+
+        # РћРїСЂРµРґРµР»СЏРµРј РѕР±СЉРµРј РІ Р·Р°РІРёСЃРёРјРѕСЃС‚Рё РѕС‚ СЃРёРјРІРѕР»Р°
+        if symbol == "DOGEUSDT":
+            trade_percentage = robot.gene.get('trade_percentage', 0.1)  # 10% РґР»СЏ DOGE
+            usd_amount = robot.balance * trade_percentage
+            qty = usd_amount / current_price
+            qty = round(qty, 0)  # РћРєСЂСѓРіР»СЏРµРј РґРѕ С†РµР»РѕРіРѕ С‡РёСЃР»Р° DOGE
+        else:
+            # Р›РѕРіРёРєР° РґР»СЏ РґСЂСѓРіРёС… СЃРёРјРІРѕР»РѕРІ (BTCUSDT)
+            trade_percentage = robot.gene.get('trade_percentage', 0.05)
+            usd_amount = robot.balance * trade_percentage
+            qty = usd_amount / current_price
+            qty = round(qty, 4)  # 4 Р·РЅР°РєР° РґР»СЏ BTC
+
+        if robot:
+            # РСЃРїРѕР»СЊР·СѓРµРј РїРµСЂСЃРѕРЅР°Р»СЊРЅС‹Р№ РїСЂРѕС†РµРЅС‚ СЂРѕР±РѕС‚Р° РёР»Рё Р±Р°Р·РѕРІС‹Р№
+            trade_percentage = robot.gene.get('trade_percentage', base_trade_percentage)
+            usd_amount = robot.balance * trade_percentage
+            
+            # Р’ РјРµС‚РѕРґ generate_signal РїРѕСЃР»Рµ СЂР°СЃС‡РµС‚Р° РѕР±СЉРµРјР°
+            logger.debug(f"Р РѕР±РѕС‚ {robot.robot_id if robot else 'N/A'}: "
+                        f"Р±Р°Р»Р°РЅСЃ={robot.balance if robot else 'N/A'}, "
+                        f"РїСЂРѕС†РµРЅС‚={trade_percentage}, "
+                        f"РѕР±СЉРµРј={qty} {symbol}")
+
+            # Р”Р»СЏ DOGE СѓР±РµРґРёРјСЃСЏ, С‡С‚Рѕ РѕР±СЉРµРј РЅРµ РјРµРЅСЊС€Рµ РјРёРЅРёРјР°Р»СЊРЅРѕРіРѕ
+            if symbol == "DOGEUSDT":
+                min_usd_amount = 100 * current_price  # РњРёРЅРёРјР°Р»СЊРЅР°СЏ СЃСѓРјРјР° РІ USDT РґР»СЏ 100 DOGE
+                if usd_amount < min_usd_amount:
+                    usd_amount = min_usd_amount * 1.2  # Р”РѕР±Р°РІР»СЏРµРј 20% Р·Р°РїР°СЃР°
+                
+            qty = usd_amount / current_price
+            
+            # РћРєСЂСѓРіР»СЏРµРј РѕР±СЉРµРј РІ Р·Р°РІРёСЃРёРјРѕСЃС‚Рё РѕС‚ СЃРёРјРІРѕР»Р°
+            if symbol == "DOGEUSDT":
+                qty = round(qty)  # Р¦РµР»РѕРµ С‡РёСЃР»Рѕ РґР»СЏ DOGE
+            else:
+                qty = round(qty, 4)  # 4 Р·РЅР°РєР° РґР»СЏ BTC
+        else:
+            # Р—Р°РїР°СЃРЅРѕР№ РІР°СЂРёР°РЅС‚
+            qty = 100  # РњРёРЅРёРјР°Р»СЊРЅС‹Р№ РѕР±СЉРµРј РґР»СЏ DOGE
+        
+        if decision == 'buy':
+            buy_price = round(current_price * 0.99, 2)
+            return {
+                'action': 'buy',
+                'price': buy_price,
+                'qty': qty,
+                'reason': f'buy_signal_at_{buy_price}'
+            }
+        elif decision == 'sell':
+            sell_price = round(current_price * 1.01, 2)
+            return {
+                'action': 'sell',
+                'price': sell_price,
+                'qty': qty,
+                'reason': f'sell_signal_at_{sell_price}'
+            }
+        else:
+           return {
+            'action': 'hold',
+            'price': current_price,  # вњ… Р”РѕР±Р°РІР»СЏРµРј С†РµРЅСѓ РґР°Р¶Рµ РґР»СЏ hold
+            'qty': 0,
+            'reason': 'no_clear_signal'
+        }
+
+class AdvancedStrategy:
+    def __init__(self, client):
+        self.client = client
+        self.name = "advanced_technical"
+        
+    def calculate_indicators(self, historical_data):
+        closes = np.array([float(x[4]) for x in historical_data])
+        
+        # RSI
+        rsi = talib.RSI(closes, timeperiod=14)
+        
+        # MACD
+        macd, macd_signal, macd_hist = talib.MACD(closes)
+        
+        # Bollinger Bands
+        upper_band, middle_band, lower_band = talib.BBANDS(closes)
+        
+        return {
+            'rsi': rsi[-1],
+            'macd': macd[-1],
+            'macd_signal': macd_signal[-1],
+            'bb_upper': upper_band[-1],
+            'bb_middle': middle_band[-1],
+            'bb_lower': lower_band[-1]
+        }
+    
+    def generate_signal(self, symbol, market_data, robot=None):
+        # РџРѕР»СѓС‡Р°РµРј РёСЃС‚РѕСЂРёС‡РµСЃРєРёРµ РґР°РЅРЅС‹Рµ
+        klines = self.client.get_klines(symbol, "5", limit=50)
+        indicators = self.calculate_indicators(klines)
+        
+        # РЎРѕР·РґР°РµРј СЃР»РѕР¶РЅРѕРµ РїСЂР°РІРёР»Рѕ РЅР° РѕСЃРЅРѕРІРµ РёРЅРґРёРєР°С‚РѕСЂРѕРІ
+        signal = self.complex_decision(indicators, market_data, robot)
+        return signal
+
+
+=== core\worker.py ===
+
+import random
+from datetime import datetime
+from typing import Any, Dict
+from utils.logger import setup_logger
+logger = setup_logger('robot')
+
+class Robot:
+    def __init__(self, robot_id, generation_born, initial_balance, strategy, gene=None):
+        self.robot_id = robot_id
+        self.generation_born = generation_born
+        self.balance = initial_balance
+        self.initial_balance = initial_balance
+        self.strategy = strategy
+        self.gene = gene if gene else self._generate_random_gene()
+        self.positions = []
+        self.trades = []
+        self.children_count = 0
+        self.current_profit = 0.0
+        self.survived_cycles = 0
+        self.fitness = 0.0
+        self.balance_history = [initial_balance]
+        self.returns = []
+        self.trades = []  # Р‘РѕР»РµРµ РґРµС‚Р°Р»СЊРЅР°СЏ РёРЅС„РѕСЂРјР°С†РёСЏ Рѕ СЃРґРµР»РєР°С…
+        
+    def trade(self, symbol, market_data):
+        """Р’С‹РїРѕР»РЅРµРЅРёРµ С‚РѕСЂРіРѕРІРѕР№ РѕРїРµСЂР°С†РёРё СЃ РїСЂРѕРІРµСЂРєРѕР№ Р±Р°Р»Р°РЅСЃР°"""
+        # РџРµСЂРµРґР°РµРј self (СЂРѕР±РѕС‚Р°) РІ РјРµС‚РѕРґ generate_signal
+        signal = self.strategy.generate_signal(symbol, market_data, self)
+        
+        # Р Р°СЃСЃС‡РёС‚С‹РІР°РµРј СЃС‚РѕРёРјРѕСЃС‚СЊ РѕСЂРґРµСЂР°
+        order_cost = signal['price'] * signal['qty']
+        
+        # РџСЂРѕРІРµСЂСЏРµРј РґРѕСЃС‚Р°С‚РѕС‡РЅРѕ Р»Рё СЃСЂРµРґСЃС‚РІ
+        if signal['action'] == 'buy' and order_cost > self.balance:
+            logger.debug(f"Р РѕР±РѕС‚ {self.robot_id}: РЅРµРґРѕСЃС‚Р°С‚РѕС‡РЅРѕ СЃСЂРµРґСЃС‚РІ. РќСѓР¶РЅРѕ {order_cost}, РµСЃС‚СЊ {self.balance}")
+            return False
+            
+        if signal['action'] == 'sell' and not any(p['symbol'] == symbol for p in self.positions):
+            logger.debug(f"Р РѕР±РѕС‚ {self.robot_id}: РЅРµС‚ РїРѕР·РёС†РёРё РґР»СЏ РїСЂРѕРґР°Р¶Рё")
+            return False
+        
+        try:
+            if signal['action'] == 'buy':
+                order = self.strategy.client.place_order(
+                    symbol=symbol,
+                    side="Buy",
+                    order_type="Limit",
+                    qty=signal['qty'],
+                    price=signal['price']
+                )
+                if order:
+                    # Р’С‹С‡РёС‚Р°РµРј СЃС‚РѕРёРјРѕСЃС‚СЊ РёР· Р±Р°Р»Р°РЅСЃР°
+                    self.balance -= order_cost
+                    self.trades.append({
+                        'action': 'buy',
+                        'price': signal['price'],
+                        'qty': signal['qty'],
+                        'timestamp': datetime.now(),
+                        'cost': order_cost
+                    })
+                    return True
+                    
+            elif signal['action'] == 'sell':
+                order = self.strategy.client.place_order(
+                    symbol=symbol,
+                    side="Sell",
+                    order_type="Limit",
+                    qty=signal['qty'],
+                    price=signal['price']
+                )
+                if order:
+                    # Р”РѕР±Р°РІР»СЏРµРј РІС‹СЂСѓС‡РєСѓ Рє Р±Р°Р»Р°РЅСЃСѓ
+                    revenue = signal['price'] * signal['qty']
+                    self.balance += revenue
+                    self.trades.append({
+                        'action': 'sell',
+                        'price': signal['price'],
+                        'qty': signal['qty'],
+                        'timestamp': datetime.now(),
+                        'revenue': revenue
+                    })
+                    return True
+                    
+        except Exception as e:
+            logger.warning(f"Р РѕР±РѕС‚ {self.robot_id} РЅРµ СЃРјРѕРі СЂР°Р·РјРµСЃС‚РёС‚СЊ РѕСЂРґРµСЂ: {str(e)[:100]}...")
+            
+        return False
+        
+    def update_profit(self, current_price):
+        """РћР±РЅРѕРІР»РµРЅРёРµ РёРЅС„РѕСЂРјР°С†РёРё Рѕ РїСЂРёР±С‹Р»Рё"""
+        # Р—РґРµСЃСЊ Р±СѓРґРµС‚ Р»РѕРіРёРєР° СЂР°СЃС‡РµС‚Р° С‚РµРєСѓС‰РµР№ РїСЂРёР±С‹Р»Рё
+        # РџРѕРєР° РїСЂРѕСЃС‚Рѕ СЃР»СѓС‡Р°Р№РЅРѕРµ Р·РЅР°С‡РµРЅРёРµ РґР»СЏ С‚РµСЃС‚Р°
+        self.current_profit = random.uniform(-0.05, 0.1) * self.initial_balance
+        return self.current_profit
+    
+    def update_after_trade(self, trade_result: Dict[str, Any]):
+        self.trades.append(trade_result)
+        current_balance = self.balance
+        previous_balance = self.balance_history[-1]
+        
+        # Р Р°СЃС‡РµС‚ РґРѕС…РѕРґРЅРѕСЃС‚Рё
+        if previous_balance > 0:
+            returns = (current_balance - previous_balance) / previous_balance
+            self.returns.append(returns)
+        
+        self.balance_history.append(current_balance)
+
+
+=== data\generation_0.json ===
+
+{
+  "generation": 0,
+  "start_time": "2025-09-03T03:57:33.160853",
+  "end_time": "2025-09-03T03:57:41.930877",
+  "best_robot": {
+    "id": 18,
+    "profit": -43.647459702846405,
+    "fitness": 5.4563525402971536
+  },
+  "avg_profit": 12.28988794259593,
+  "avg_fitness": -0.012710112057404088
+}
+
+
+=== data\generation_1.json ===
+
+{
+  "generation": 1,
+  "start_time": "2025-09-03T03:57:43.931306",
+  "end_time": "2025-09-03T03:57:51.495033",
+  "best_robot": {
+    "id": 14,
+    "profit": -14.324905459629562,
+    "fitness": 5.485675094540371
+  },
+  "avg_profit": 11.575026696127383,
+  "avg_fitness": 0.33657502669612743
+}
+
+
+=== data\generation_2.json ===
+
+{
+  "generation": 2,
+  "start_time": "2025-09-03T03:57:53.497292",
+  "end_time": "2025-09-03T03:58:00.826943",
+  "best_robot": {
+    "id": 10,
+    "profit": 76.47609908162748,
+    "fitness": 5.576476099081628
+  },
+  "avg_profit": 22.560092518390398,
+  "avg_fitness": -0.002439907481609571
+}
+
+
+=== data\generation_3.json ===
+
+{
+  "generation": 3,
+  "start_time": "2025-09-03T03:58:02.840344",
+  "end_time": "2025-09-03T03:58:10.337326",
+  "best_robot": {
+    "id": 16,
+    "profit": 61.3250217389662,
+    "fitness": 5.561325021738966
+  },
+  "avg_profit": 21.69790095664152,
+  "avg_fitness": -0.0033020990433584863
+}
+
+
+=== data\generation_4.json ===
+
+{
+  "generation": 4,
+  "start_time": "2025-09-03T03:58:12.350923",
+  "end_time": "2025-09-03T03:58:19.587848",
+  "best_robot": {
+    "id": 5,
+    "profit": 96.40089434769898,
+    "fitness": -1.403599105652301
+  },
+  "avg_profit": 21.95551481953371,
+  "avg_fitness": -0.35304448518046627
+}
+
+
+=== data\generation_5.json ===
+
+{
+  "generation": 5,
+  "start_time": "2025-09-03T03:58:21.597581",
+  "end_time": "2025-09-03T03:58:28.682608",
+  "best_robot": {
+    "id": 7,
+    "profit": 36.90701848081523,
+    "fitness": 5.536907018480815
+  },
+  "avg_profit": 14.728840720834109,
+  "avg_fitness": 0.3397288407208341
+}
+
+
+=== data\generation_6.json ===
+
+{
+  "generation": 6,
+  "start_time": "2025-09-03T03:58:30.685317",
+  "end_time": "2025-09-03T03:58:37.812146",
+  "best_robot": {
+    "id": 17,
+    "profit": 79.95269539144147,
+    "fitness": 5.579952695391442
+  },
+  "avg_profit": 14.978229488326315,
+  "avg_fitness": 0.6899782294883263
+}
+
+
+=== data\generation_7.json ===
+
+{
+  "generation": 7,
+  "start_time": "2025-09-03T03:58:39.823538",
+  "end_time": "2025-09-03T03:58:47.026942",
+  "best_robot": {
+    "id": 19,
+    "profit": 72.1022314533223,
+    "fitness": 5.572102231453322
+  },
+  "avg_profit": 14.609029851376434,
+  "avg_fitness": 0.3396090298513765
+}
+
+
+=== data\generation_8.json ===
+
+{
+  "generation": 8,
+  "start_time": "2025-09-03T03:58:49.036935",
+  "end_time": "2025-09-03T03:58:56.101196",
+  "best_robot": {
+    "id": 5,
+    "profit": 85.93204756689342,
+    "fitness": 5.585932047566893
+  },
+  "avg_profit": 15.356186819409292,
+  "avg_fitness": 0.6903561868194092
+}
+
+
+=== data\generation_9.json ===
+
+{
+  "generation": 9,
+  "start_time": "2025-09-03T03:58:58.111089",
+  "end_time": "2025-09-03T03:59:05.026277",
+  "best_robot": {
+    "id": 13,
+    "profit": 78.51555133576267,
+    "fitness": 5.578515551335762
+  },
+  "avg_profit": 20.26429501356621,
+  "avg_fitness": 0.6952642950135661
+}
+
+
+=== evolution\__init__.py ===
+
+
+
+=== evolution\crossover.py ===
+
+
+
+=== evolution\genes.py ===
+
+import numpy as np
+import random
+
+def mutate(gene: dict) -> dict:
+    """РњСѓС‚Р°С†РёСЏ РіРµРЅР° СЂРѕР±РѕС‚Р°"""
+    mutated_gene = gene.copy()
+    
+    # РњСѓС‚Р°С†РёСЏ С‚РѕСЂРіРѕРІРѕРіРѕ РїСЂРѕС†РµРЅС‚Р°
+    if random.random() < 0.3:  # 30% РІРµСЂРѕСЏС‚РЅРѕСЃС‚СЊ РјСѓС‚Р°С†РёРё
+        mutated_gene['trade_percentage'] = np.random.uniform(0.01, 0.1)
+    
+    # РњСѓС‚Р°С†РёСЏ СЃРєР»РѕРЅРЅРѕСЃС‚Рё Рє СЂРёСЃРєСѓ
+    if random.random() < 0.3:
+        mutated_gene['risk_appetite'] = np.clip(
+            gene['risk_appetite'] + np.random.normal(0, 0.1), 0.1, 0.9
+        )
+    
+    # РњСѓС‚Р°С†РёСЏ РґРµСЂРµРІР° СЂРµС€РµРЅРёР№
+    if random.random() < 0.4:
+        if len(mutated_gene['decision_tree']) > 2:
+            # РЈРґР°Р»СЏРµРј СЃР»СѓС‡Р°Р№РЅРѕРµ СѓСЃР»РѕРІРёРµ
+            if random.random() < 0.5:
+                del mutated_gene['decision_tree'][random.randint(0, len(mutated_gene['decision_tree']) - 1)]
+            # Р”РѕР±Р°РІР»СЏРµРј РЅРѕРІРѕРµ СѓСЃР»РѕРІРёРµ
+            else:
+                new_condition = {
+                    'indicator': random.choice(['rsi', 'price_above_ema', 'volume']),
+                    'operator': random.choice(['<', '>', '==']),
+                    'value': random.randint(20, 80),
+                    'action': random.choice(['buy', 'sell'])
+                }
+                mutated_gene['decision_tree'].append(new_condition)
+    
+    return mutated_gene
+
+def crossover(gene1: dict, gene2: dict) -> dict:
+    """РЎРєСЂРµС‰РёРІР°РЅРёРµ РґРІСѓС… РіРµРЅРѕРІ"""
+    child_gene = {}
+    
+    # РЎРєСЂРµС‰РёРІР°РЅРёРµ С‚РѕСЂРіРѕРІРѕРіРѕ РїСЂРѕС†РµРЅС‚Р°
+    child_gene['trade_percentage'] = (gene1['trade_percentage'] + gene2['trade_percentage']) / 2
+    
+    # РЎРєСЂРµС‰РёРІР°РЅРёРµ СЃРєР»РѕРЅРЅРѕСЃС‚Рё Рє СЂРёСЃРєСѓ
+    child_gene['risk_appetite'] = (gene1['risk_appetite'] + gene2['risk_appetite']) / 2
+    
+    # РЎРєСЂРµС‰РёРІР°РЅРёРµ РґРµСЂРµРІР° СЂРµС€РµРЅРёР№
+    child_gene['decision_tree'] = gene1['decision_tree'][:len(gene1['decision_tree'])//2] + \
+                                 gene2['decision_tree'][len(gene2['decision_tree'])//2:]
+    
+    return child_gene
+
+
+=== evolution\mutation.py ===
+
+
+
+=== evolution\selection.py ===
+
+import numpy as np
+from utils.logger import setup_logger
+
+logger = setup_logger('evolution_manager')
+def select_parents(population, elite_size=5):
+    """РћС‚Р±РѕСЂ СЂРѕРґРёС‚РµР»РµР№ РґР»СЏ СЃР»РµРґСѓСЋС‰РµРіРѕ РїРѕРєРѕР»РµРЅРёСЏ СЃ РѕР±СЂР°Р±РѕС‚РєРѕР№ РѕС‚СЂРёС†Р°С‚РµР»СЊРЅС‹С… fitness"""
+    # РћС‚Р±РёСЂР°РµРј СЌР»РёС‚РЅС‹С… РѕСЃРѕР±РµР№
+    elites = population[:elite_size]
+    
+    # РџРѕР»СѓС‡Р°РµРј Р·РЅР°С‡РµРЅРёСЏ РїСЂРёСЃРїРѕСЃРѕР±Р»РµРЅРЅРѕСЃС‚Рё
+    fitnesses = np.array([robot.fitness for robot in population])
+    
+    # РћР±СЂР°Р±Р°С‚С‹РІР°РµРј РѕС‚СЂРёС†Р°С‚РµР»СЊРЅС‹Рµ Р·РЅР°С‡РµРЅРёСЏ fitness
+    min_fitness = np.min(fitnesses)
+    if min_fitness < 0:
+        # РЎРґРІРёРіР°РµРј РІСЃРµ Р·РЅР°С‡РµРЅРёСЏ, С‡С‚РѕР±С‹ РјРёРЅРёРјР°Р»СЊРЅРѕРµ Р±С‹Р»Рѕ СЂР°РІРЅРѕ 0
+        shifted_fitnesses = fitnesses - min_fitness + 1e-10  # Р”РѕР±Р°РІР»СЏРµРј РјР°Р»РµРЅСЊРєРѕРµ Р·РЅР°С‡РµРЅРёРµ РґР»СЏ РёР·Р±РµР¶Р°РЅРёСЏ РґРµР»РµРЅРёСЏ РЅР° 0
+    else:
+        shifted_fitnesses = fitnesses + 1e-10  # Р”РѕР±Р°РІР»СЏРµРј РјР°Р»РµРЅСЊРєРѕРµ Р·РЅР°С‡РµРЅРёРµ РґР»СЏ РёР·Р±РµР¶Р°РЅРёСЏ РґРµР»РµРЅРёСЏ РЅР° 0
+    
+    # Р’С‹С‡РёСЃР»СЏРµРј РІРµСЂРѕСЏС‚РЅРѕСЃС‚Рё РІС‹Р±РѕСЂР°
+    total_fitness = np.sum(shifted_fitnesses)
+    probabilities = shifted_fitnesses / total_fitness
+    
+    # РџСЂРѕРІРµСЂСЏРµРј, С‡С‚Рѕ РІСЃРµ РІРµСЂРѕСЏС‚РЅРѕСЃС‚Рё РЅРµРѕС‚СЂРёС†Р°С‚РµР»СЊРЅС‹Рµ
+    if np.any(probabilities < 0):
+        # Р•СЃР»Рё РµСЃС‚СЊ РѕС‚СЂРёС†Р°С‚РµР»СЊРЅС‹Рµ РІРµСЂРѕСЏС‚РЅРѕСЃС‚Рё, РёСЃРїРѕР»СЊР·СѓРµРј СЂР°РІРЅРѕРјРµСЂРЅРѕРµ СЂР°СЃРїСЂРµРґРµР»РµРЅРёРµ
+        probabilities = np.ones(len(population)) / len(population)
+        logger.warning("РћР±РЅР°СЂСѓР¶РµРЅС‹ РѕС‚СЂРёС†Р°С‚РµР»СЊРЅС‹Рµ РІРµСЂРѕСЏС‚РЅРѕСЃС‚Рё, РёСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ СЂР°РІРЅРѕРјРµСЂРЅРѕРµ СЂР°СЃРїСЂРµРґРµР»РµРЅРёРµ")
+    
+    # РћС‚Р±РёСЂР°РµРј СЂРѕРґРёС‚РµР»РµР№
+    selected = list(np.random.choice(
+        population, 
+        size=len(population) - elite_size, 
+        p=probabilities,
+        replace=False
+    ))
+    
+    return elites + selected
+
+
+=== main.py ===
+
+# main.py
+from core.bybit_client import BybitClient
+from core.master import EvolutionManager
+from analysis.visualizer import RaceVisualizer, MetricsVisualizer
+from config.settings import load_config
+import logging
+import time
+import os
+
+# РќР°СЃС‚СЂРѕР№РєР° Р»РѕРіРёСЂРѕРІР°РЅРёСЏ
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('logs/evolution.log'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
+
+def main():
+    try:
+        # РЎРѕР·РґР°РµРј РїР°РїРєРё РґР»СЏ РґР°РЅРЅС‹С… РµСЃР»Рё РёС… РЅРµС‚
+        os.makedirs('logs', exist_ok=True)
+        os.makedirs('data', exist_ok=True)
+        
+        # Р—Р°РіСЂСѓР·РєР° РєРѕРЅС„РёРіСѓСЂР°С†РёРё
+        logger.info("Р—Р°РіСЂСѓР·РєР° РєРѕРЅС„РёРіСѓСЂР°С†РёРё...")
+        config = load_config()
+        
+        # РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ РєР»РёРµРЅС‚Р° API
+        logger.info("РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ РєР»РёРµРЅС‚Р° API...")
+        client = BybitClient(testnet=config['testnet'])
+        
+        # РџСЂРѕРІРµСЂРєР° РїРѕРґРєР»СЋС‡РµРЅРёСЏ
+        logger.info("РџСЂРѕРІРµСЂРєР° РїРѕРґРєР»СЋС‡РµРЅРёСЏ Рє API...")
+        key_info = client.get_api_key_info()
+        if key_info:
+            logger.info(f"[РЈРЎРџР•РҐ] API Key РёРЅС„РѕСЂРјР°С†РёСЏ РїРѕР»СѓС‡РµРЅР°:")
+            logger.info(f"   - РџСЂР°РІР°: {key_info.get('permissions', {})}")
+            logger.info(f"   - UTA СЃС‚Р°С‚СѓСЃ: {key_info.get('uta', 'N/A')} (1 = UTA Р°РєРєР°СѓРЅС‚)")
+        else:
+            logger.warning("РќРµ СѓРґР°Р»РѕСЃСЊ РїРѕР»СѓС‡РёС‚СЊ РёРЅС„РѕСЂРјР°С†РёСЋ Рѕ API РєР»СЋС‡Рµ")
+        
+        # РџСЂРѕРІРµСЂРєР° Р±Р°Р»Р°РЅСЃР°
+        logger.info("РџСЂРѕРІРµСЂРєР° Р±Р°Р»Р°РЅСЃР°...")
+        balance = client.get_account_balance()
+        logger.info(f"[Р‘РђР›РђРќРЎ] Р‘Р°Р»Р°РЅСЃ РєРѕС€РµР»СЊРєР°: {balance} USDT")
+        
+        # РџСЂРѕРІРµСЂРєР° РјРёРЅРёРјР°Р»СЊРЅРѕРіРѕ Р±Р°Р»Р°РЅСЃР°
+        min_balance = 100.0
+        if balance < min_balance:
+            logger.error(f"РќРµРґРѕСЃС‚Р°С‚РѕС‡РЅС‹Р№ Р±Р°Р»Р°РЅСЃ: {balance} < {min_balance}. РџРѕРїРѕР»РЅРёС‚Рµ С‚РµСЃС‚РѕРІС‹Р№ СЃС‡РµС‚.")
+            return
+        
+        # РўРµСЃС‚РёСЂРѕРІР°РЅРёРµ РїРѕР»СѓС‡РµРЅРёСЏ С‚РёРєРµСЂР°
+        logger.info("РўРµСЃС‚РёСЂРѕРІР°РЅРёРµ РїРѕР»СѓС‡РµРЅРёСЏ РґР°РЅРЅС‹С… С‚РёРєРµСЂР°...")
+        ticker = client.get_ticker(config['symbol'])
+        logger.info(f"Р”Р°РЅРЅС‹Рµ С‚РёРєРµСЂР° РїРѕР»СѓС‡РµРЅС‹: {bool(ticker)}")
+        
+        # РЎРѕР·РґР°РЅРёРµ РјР°СЃС‚РµСЂР° СЌРІРѕР»СЋС†РёРё
+        logger.info("РЎРѕР·РґР°РЅРёРµ РјР°СЃС‚РµСЂР° СЌРІРѕР»СЋС†РёРё...")
+        evolution_manager = EvolutionManager(config, client)
+        
+        # РЎРѕР·РґР°РЅРёРµ РІРёР·СѓР°Р»РёР·Р°С‚РѕСЂРѕРІ
+        logger.info("РЎРѕР·РґР°РЅРёРµ РІРёР·СѓР°Р»РёР·Р°С‚РѕСЂРѕРІ...")
+        race_visualizer = RaceVisualizer(evolution_manager)
+        metrics_visualizer = MetricsVisualizer()
+        
+        # РћСЃРЅРѕРІРЅРѕР№ С†РёРєР» СЌРІРѕР»СЋС†РёРё
+        logger.info("Р—Р°РїСѓСЃРє РѕСЃРЅРѕРІРЅРѕРіРѕ С†РёРєР»Р° СЌРІРѕР»СЋС†РёРё...")
+        generation_count = 0
+        max_generations = 10  # РЈРІРµР»РёС‡РёРј РєРѕР»РёС‡РµСЃС‚РІРѕ РїРѕРєРѕР»РµРЅРёР№
+        
+        while generation_count < max_generations and evolution_manager.should_continue_evolution():
+            logger.info(f"=== РџРћРљРћР›Р•РќРР• {generation_count} ===")
+            
+            try:
+                # Р—Р°РїСѓСЃРє РїРѕРєРѕР»РµРЅРёСЏ
+                evolution_manager.run_generation()
+                logger.info(f"РџРѕРєРѕР»РµРЅРёРµ {generation_count} Р·Р°РІРµСЂС€РµРЅРѕ СѓСЃРїРµС€РЅРѕ")
+                
+                # РћР±РЅРѕРІР»РµРЅРёРµ РІРёР·СѓР°Р»РёР·Р°С†РёРё
+                race_visualizer.update()
+                
+                # Р’РёР·СѓР°Р»РёР·Р°С†РёСЏ РјРµС‚СЂРёРє
+                metrics_visualizer.plot_generation_metrics(evolution_manager)
+                
+                # РЎРѕС…СЂР°РЅРµРЅРёРµ Р»СѓС‡С€РёС… СЂРѕР±РѕС‚РѕРІ РµСЃР»Рё РїСЂРµРІС‹С€РµРЅ РїРѕСЂРѕРі fitness
+                if (evolution_manager.best_robots and 
+                    evolution_manager.best_robots[-1].fitness > config.get('fitness_threshold', 0.15)):
+                    evolution_manager.save_best_robots()
+                
+            except Exception as e:
+                logger.error(f"РћС€РёР±РєР° РІ РїРѕРєРѕР»РµРЅРёРё {generation_count}: {e}")
+                import traceback
+                traceback.print_exc()
+                # РџСЂРѕРґРѕР»Р¶Р°РµРј РІС‹РїРѕР»РЅРµРЅРёРµ РЅРµСЃРјРѕС‚СЂСЏ РЅР° РѕС€РёР±РєСѓ
+            
+            generation_count += 1
+            time.sleep(2)  # РџР°СѓР·Р° РјРµР¶РґСѓ РїРѕРєРѕР»РµРЅРёСЏРјРё
+        
+        # Р¤РёРЅР°Р»СЊРЅС‹Р№ РѕС‚С‡РµС‚
+        logger.info("=== Р­Р’РћР›Р®Р¦РРЇ Р—РђР’Р•Р РЁР•РќРђ ===")
+        
+        if hasattr(evolution_manager, 'best_robots') and evolution_manager.best_robots:
+            best_robot = evolution_manager.best_robots[-1]
+            logger.info(f"Р›СѓС‡С€РёР№ СЂРѕР±РѕС‚: ID {best_robot.robot_id}")
+            logger.info(f"РџСЂРёР±С‹Р»СЊ: {best_robot.current_profit:.2f} USDT")
+            logger.info(f"Р¤РёС‚РЅРµСЃ: {best_robot.fitness:.6f}")
+            logger.info(f"РџРѕРєРѕР»РµРЅРёРµ СЂРѕР¶РґРµРЅРёСЏ: {best_robot.generation_born}")
+            logger.info(f"РџРµСЂРµР¶РёС‚Рѕ С†РёРєР»РѕРІ: {best_robot.survived_cycles}")
+        else:
+            logger.info("РќРµС‚ РґР°РЅРЅС‹С… Рѕ Р»СѓС‡С€РёС… СЂРѕР±РѕС‚Р°С…")
+            
+        # РЎРѕС…СЂР°РЅРµРЅРёРµ С„РёРЅР°Р»СЊРЅС‹С… СЂРµР·СѓР»СЊС‚Р°С‚РѕРІ
+        evolution_manager.save_final_results()
+        
+    except Exception as e:
+        logger.error(f"РљСЂРёС‚РёС‡РµСЃРєР°СЏ РѕС€РёР±РєР° РІ main: {e}")
+        import traceback
+        traceback.print_exc()
+
+if __name__ == "__main__":
+    main()
+
+
+=== README.md ===
+
+
+Р’РѕС‚ РѕРїРёСЃР°РЅРёРµ РїСЂРѕРµРєС‚Р° РєРѕС‚РѕСЂС‹Р№ РјС‹ СЃ С‚РѕР±РѕР№ СЂР°Р·СЂР°Р±Р°С‚С‹РІР°Р»Рё РІ РїСЂРѕС€Р»РѕРј С‡Р°С‚Рµ, РїРѕРєР° РЅРµ Р·Р°РєРѕРЅС‡РёР»Р°СЃСЊ РґР»РёРЅР° РєРѕРЅС‚РµРєСЃС‚Р°.
+
+Р­РІРѕР»СЋС†РёРѕРЅРЅС‹Р№ С‚РѕСЂРіРѕРІС‹Р№ Р±РѕС‚ РґР»СЏ Bybit
+рџ“‹ РћР±С‰РµРµ РѕРїРёСЃР°РЅРёРµ
+
+РџСЂРѕРµРєС‚ РїСЂРµРґСЃС‚Р°РІР»СЏРµС‚ СЃРѕР±РѕР№ СЌРІРѕР»СЋС†РёРѕРЅРЅСѓСЋ С‚РѕСЂРіРѕРІСѓСЋ СЃРёСЃС‚РµРјСѓ РЅР° Python, РєРѕС‚РѕСЂР°СЏ РёСЃРїРѕР»СЊР·СѓРµС‚ РіРµРЅРµС‚РёС‡РµСЃРєРёР№ Р°Р»РіРѕСЂРёС‚Рј РґР»СЏ СЃРѕР·РґР°РЅРёСЏ Рё РѕРїС‚РёРјРёР·Р°С†РёРё СЂРѕСЏ С‚РѕСЂРіРѕРІС‹С… СЂРѕР±РѕС‚РѕРІ РЅР° РїР»Р°С‚С„РѕСЂРјРµ Bybit.
+рџЋЇ РћСЃРЅРѕРІРЅР°СЏ РєРѕРЅС†РµРїС†РёСЏ
+
+Р­РІРѕР»СЋС†РёРѕРЅРЅС‹Р№ Р°Р»РіРѕСЂРёС‚Рј, РіРґРµ:
+    РљР°Р¶РґРѕРµ "РїРѕРєРѕР»РµРЅРёРµ" - СЌС‚Рѕ С‚РѕСЂРіРѕРІС‹Р№ С†РёРєР» (5 РјРёРЅСѓС‚)
+    Р РѕР±РѕС‚С‹ С‚РѕСЂРіСѓСЋС‚ СЃ СЂР°Р·Р»РёС‡РЅС‹РјРё СЃС‚СЂР°С‚РµРіРёСЏРјРё
+    Р’ РЅРѕРІРѕРµ РїРѕРєРѕР»РµРЅРёРµ РїРµСЂРµС…РѕРґСЏС‚ С‚РѕР»СЊРєРѕ РЅР°РёР±РѕР»РµРµ СѓСЃРїРµС€РЅС‹Рµ СЂРѕР±РѕС‚С‹
+    РџСЂРѕРёСЃС…РѕРґРёС‚ СЃРєСЂРµС‰РёРІР°РЅРёРµ Рё РјСѓС‚Р°С†РёСЏ Р»СѓС‡С€РёС… СЃС‚СЂР°С‚РµРіРёР№
+ РђСЂС…РёС‚РµРєС‚СѓСЂР° РїСЂРѕРµРєС‚Р°
+ /bybit_evolution_bot/
+в”њв”Ђв”Ђ core/
+в”‚   в”њв”Ђв”Ђ master.py           # EvolutionManager - СѓРїСЂР°РІР»РµРЅРёРµ СЌРІРѕР»СЋС†РёРµР№
+в”‚   в”њв”Ђв”Ђ worker.py           # Robot - РєР»Р°СЃСЃ С‚РѕСЂРіРѕРІРѕРіРѕ СЂРѕР±РѕС‚Р°
+в”‚   в”њв”Ђв”Ђ strategies.py       # РўРѕСЂРіРѕРІС‹Рµ СЃС‚СЂР°С‚РµРіРёРё
+в”‚   в””в”Ђв”Ђ bybit_client.py     # API РєР»РёРµРЅС‚ РґР»СЏ Bybit
+в”њв”Ђв”Ђ evolution/
+в”‚   в”њв”Ђв”Ђ genes.py            # Р“РµРЅС‹, РјСѓС‚Р°С†РёСЏ, СЃРєСЂРµС‰РёРІР°РЅРёРµ
+в”‚   в””в”Ђв”Ђ selection.py        # РћС‚Р±РѕСЂ СЂРѕРґРёС‚РµР»РµР№
+в”њв”Ђв”Ђ analysis/
+в”‚   в”њв”Ђв”Ђ visualizer.py       # Р’РёР·СѓР°Р»РёР·Р°С†РёСЏ СЂРµР·СѓР»СЊС‚Р°С‚РѕРІ
+в”‚   в”њв”Ђв”Ђ metrics.py          # Р Р°СЃС‡РµС‚ РјРµС‚СЂРёРє СЌС„С„РµРєС‚РёРІРЅРѕСЃС‚Рё
+в”‚   в””в”Ђв”Ђ reporter.py         # Р“РµРЅРµСЂР°С†РёСЏ РѕС‚С‡РµС‚РѕРІ
+в”њв”Ђв”Ђ config/
+в”‚   в””в”Ђв”Ђ settings.py         # РќР°СЃС‚СЂРѕР№РєРё РєРѕРЅС„РёРіСѓСЂР°С†РёРё
+в”њв”Ђв”Ђ utils/
+в”‚   в””в”Ђв”Ђ logger.py           # РќР°СЃС‚СЂРѕР№РєР° Р»РѕРіРёСЂРѕРІР°РЅРёСЏ
+в”њв”Ђв”Ђ data/                   # Р”Р°РЅРЅС‹Рµ Рё СЂРµР·СѓР»СЊС‚Р°С‚С‹
+в”њв”Ђв”Ђ logs/                   # Р›РѕРіРё РІС‹РїРѕР»РЅРµРЅРёСЏ
+в”њв”Ђв”Ђ main.py                 # РўРѕС‡РєР° РІС…РѕРґР°
+в”њв”Ђв”Ђ config.json             # РљРѕРЅС„РёРіСѓСЂР°С†РёСЏ
+в””в”Ђв”Ђ requirements.txt        # Р—Р°РІРёСЃРёРјРѕСЃС‚Рё
+РљР»СЋС‡РµРІС‹Рµ РєРѕРјРїРѕРЅРµРЅС‚С‹
+1. BybitClient (core/bybit_client.py)
+
+    Р Р°Р±РѕС‚Р° СЃ API Bybit (REST)
+
+    Р Р°Р·РјРµС‰РµРЅРёРµ РѕСЂРґРµСЂРѕРІ, РїРѕР»СѓС‡РµРЅРёРµ Р±Р°Р»Р°РЅСЃР°
+
+    РЈРїСЂР°РІР»РµРЅРёРµ РїРѕР·РёС†РёСЏРјРё
+
+    РџРѕРґРґРµСЂР¶РєР° С‚РµСЃС‚РѕРІРѕРіРѕ СЂРµР¶РёРјР° (testnet)
+
+2. EvolutionManager (core/master.py)
+
+    РЈРїСЂР°РІР»РµРЅРёРµ СЌРІРѕР»СЋС†РёРѕРЅРЅС‹Рј РїСЂРѕС†РµСЃСЃРѕРј
+
+    РЎРѕР·РґР°РЅРёРµ РїРѕРєРѕР»РµРЅРёР№ СЂРѕР±РѕС‚РѕРІ
+
+    РћС†РµРЅРєР° СЌС„С„РµРєС‚РёРІРЅРѕСЃС‚Рё
+
+    РћС‚Р±РѕСЂ Рё СЂР°Р·РјРЅРѕР¶РµРЅРёРµ Р»СѓС‡С€РёС… СЂРѕР±РѕС‚РѕРІ
+
+3. Robot (core/worker.py)
+
+    РРЅРґРёРІРёРґСѓР°Р»СЊРЅС‹Р№ С‚РѕСЂРіРѕРІС‹Р№ Р°РіРµРЅС‚
+
+    РЎРѕР±СЃС‚РІРµРЅРЅС‹Р№ Р±Р°Р»Р°РЅСЃ Рё СЃС‚СЂР°С‚РµРіРёСЏ
+
+    Р“РµРЅРµС‚РёС‡РµСЃРєРёР№ РєРѕРґ (РїР°СЂР°РјРµС‚СЂС‹ С‚РѕСЂРіРѕРІР»Рё)
+
+    РћС‚СЃР»РµР¶РёРІР°РЅРёРµ РїРѕР·РёС†РёР№ Рё СЃРґРµР»РѕРє
+
+4. РўРѕСЂРіРѕРІС‹Рµ СЃС‚СЂР°С‚РµРіРёРё (core/strategies.py)
+
+    РџСЂРѕСЃС‚С‹Рµ Рё СЃР»РѕР¶РЅС‹Рµ СЃС‚СЂР°С‚РµРіРёРё
+
+    РСЃРїРѕР»СЊР·РѕРІР°РЅРёРµ С‚РµС…РЅРёС‡РµСЃРєРёС… РёРЅРґРёРєР°С‚РѕСЂРѕРІ
+
+    РђРґР°РїС‚Р°С†РёСЏ Рє СЂС‹РЅРѕС‡РЅС‹Рј СѓСЃР»РѕРІРёСЏРј
+
+вљ™пёЏ РўРµРєСѓС‰Р°СЏ РєРѕРЅС„РёРіСѓСЂР°С†РёСЏ
+
+    Р‘РёСЂР¶Р°: Bybit Testnet
+
+    РўРѕСЂРіРѕРІР°СЏ РїР°СЂР°: DOGEUSDT
+
+    Р РµР¶РёРј: Р•РґРёРЅС‹Р№ С‚РѕСЂРіРѕРІС‹Р№ СЃС‡РµС‚ (Unified Trading Account)
+
+    Р Р°Р·РјРµСЂ РїРѕРїСѓР»СЏС†РёРё: 20 СЂРѕР±РѕС‚РѕРІ
+
+    Р”Р»РёС‚РµР»СЊРЅРѕСЃС‚СЊ РїРѕРєРѕР»РµРЅРёСЏ: 5 РјРёРЅСѓС‚
+
+    РќР°С‡Р°Р»СЊРЅС‹Р№ Р±Р°Р»Р°РЅСЃ: 1000 USDT РЅР° СЂРѕР±РѕС‚Р°
+
+Р“РµРЅРµС‚РёС‡РµСЃРєРёР№ Р°Р»РіРѕСЂРёС‚Рј
+Р“РµРЅС‹ СЂРѕР±РѕС‚Р° РІРєР»СЋС‡Р°СЋС‚:
+
+    trade_percentage - % Р±Р°Р»Р°РЅСЃР° РґР»СЏ С‚РѕСЂРіРѕРІР»Рё
+
+    risk_appetite - СЃРєР»РѕРЅРЅРѕСЃС‚СЊ Рє СЂРёСЃРєСѓ
+
+    strategy_parameters - РїР°СЂР°РјРµС‚СЂС‹ СЃС‚СЂР°С‚РµРіРёРё
+
+    decision_tree - РґРµСЂРµРІРѕ С‚РѕСЂРіРѕРІС‹С… СЂРµС€РµРЅРёР№
+
+РџСЂРѕС†РµСЃСЃ СЌРІРѕР»СЋС†РёРё:
+
+    РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ - СЃРѕР·РґР°РЅРёРµ СЃР»СѓС‡Р°Р№РЅРѕР№ РїРѕРїСѓР»СЏС†РёРё
+
+    РўРѕСЂРіРѕРІР»СЏ - РІС‹РїРѕР»РЅРµРЅРёРµ СЃРґРµР»РѕРє РІ С‚РµС‡РµРЅРёРµ РїРѕРєРѕР»РµРЅРёСЏ
+
+    РћС†РµРЅРєР° - СЂР°СЃС‡РµС‚ fitness С„СѓРЅРєС†РёРё
+
+    РћС‚Р±РѕСЂ - РІС‹Р±РѕСЂ Р»СѓС‡С€РёС… СЂРѕР±РѕС‚РѕРІ
+
+    Р Р°Р·РјРЅРѕР¶РµРЅРёРµ - СЃРєСЂРµС‰РёРІР°РЅРёРµ Рё РјСѓС‚Р°С†РёСЏ
+
+    РџРѕРІС‚РѕСЂРµРЅРёРµ - СЃРѕР·РґР°РЅРёРµ РЅРѕРІРѕРіРѕ РїРѕРєРѕР»РµРЅРёСЏ
+
+Fitness С„СѓРЅРєС†РёСЏ
+
+РњРЅРѕРіРѕС„Р°РєС‚РѕСЂРЅР°СЏ РѕС†РµРЅРєР° СЌС„С„РµРєС‚РёРІРЅРѕСЃС‚Рё:
+fitness = (
+    profit_weight * profit_factor +
+    sharpe_weight * sharpe_ratio + 
+    drawdown_weight * (1 - max_drawdown) +
+    consistency_weight * consistency_score
+)
+РўРµРєСѓС‰РёР№ СЃС‚Р°С‚СѓСЃ
+вњ… Р РµР°Р»РёР·РѕРІР°РЅРѕ:
+
+    РРЅС‚РµРіСЂР°С†РёСЏ СЃ Bybit API
+
+    Р‘Р°Р·РѕРІС‹Р№ СЌРІРѕР»СЋС†РёРѕРЅРЅС‹Р№ Р°Р»РіРѕСЂРёС‚Рј
+
+    РЎРёСЃС‚РµРјР° СѓРїСЂР°РІР»РµРЅРёСЏ РїРѕР·РёС†РёСЏРјРё
+
+    РњРµС…Р°РЅРёР·Рј Р·Р°РєСЂС‹С‚РёСЏ СЃРґРµР»РѕРє
+
+    РњРЅРѕРіРѕС„Р°РєС‚РѕСЂРЅР°СЏ РѕС†РµРЅРєР° СЌС„С„РµРєС‚РёРІРЅРѕСЃС‚Рё
+
+    Р’РёР·СѓР°Р»РёР·Р°С†РёСЏ СЂРµР·СѓР»СЊС‚Р°С‚РѕРІ
+
+рџЋЇ Р”РѕСЃС‚РёРіРЅСѓС‚С‹Рµ СЂРµР·СѓР»СЊС‚Р°С‚С‹:
+
+    РЈСЃРїРµС€РЅРѕРµ РїРѕРґРєР»СЋС‡РµРЅРёРµ Рє API Bybit
+
+    РљРѕСЂСЂРµРєС‚РЅРѕРµ СЂР°Р·РјРµС‰РµРЅРёРµ РѕСЂРґРµСЂРѕРІ
+
+    РџСЂРёР±С‹Р»СЊРЅРѕСЃС‚СЊ Р»СѓС‡С€РёС… СЂРѕР±РѕС‚РѕРІ (~100 USDT Р·Р° РїРѕРєРѕР»РµРЅРёРµ)
+
+    РЎС‚Р°Р±РёР»СЊРЅР°СЏ СЂР°Р±РѕС‚Р° СЃРёСЃС‚РµРјС‹
+
+рџ”® РџР»Р°РЅС‹ СЂР°Р·РІРёС‚РёСЏ
+
+    РЈР»СѓС‡С€РµРЅРёРµ СЃС‚СЂР°С‚РµРіРёР№ - РґРѕР±Р°РІР»РµРЅРёРµ С‚РµС…РЅРёС‡РµСЃРєРёС… РёРЅРґРёРєР°С‚РѕСЂРѕРІ
+
+    РћРїС‚РёРјРёР·Р°С†РёСЏ Р°Р»РіРѕСЂРёС‚РјР° - СѓР»СѓС‡С€РµРЅРёРµ РјРµС…Р°РЅРёР·РјР° СЌРІРѕР»СЋС†РёРё
+
+    Р Р°СЃС€РёСЂРµРЅРЅР°СЏ Р°РЅР°Р»РёС‚РёРєР° - РґРµС‚Р°Р»СЊРЅР°СЏ СЃС‚Р°С‚РёСЃС‚РёРєР° СЌС„С„РµРєС‚РёРІРЅРѕСЃС‚Рё
+
+    Risk management - СЃРёСЃС‚РµРјР° СѓРїСЂР°РІР»РµРЅРёСЏ СЂРёСЃРєР°РјРё
+
+    Р‘СЌРєС‚РµСЃС‚РёРЅРі - С‚РµСЃС‚РёСЂРѕРІР°РЅРёРµ РЅР° РёСЃС‚РѕСЂРёС‡РµСЃРєРёС… РґР°РЅРЅС‹С…
+
+рџ› пёЏ РўРµС…РЅРёС‡РµСЃРєРёР№ СЃС‚РµРє
+
+    Python 3.9.5+
+
+    pybit - API РєР»РёРµРЅС‚ Bybit
+
+    pandas/numpy - Р°РЅР°Р»РёР· РґР°РЅРЅС‹С…
+
+    matplotlib - РІРёР·СѓР°Р»РёР·Р°С†РёСЏ
+
+    TA-Lib - С‚РµС…РЅРёС‡РµСЃРєРёРµ РёРЅРґРёРєР°С‚РѕСЂС‹
+
+рџ“ќ РљР°Рє Р·Р°РїСѓСЃС‚РёС‚СЊ
+
+    РЈСЃС‚Р°РЅРѕРІРёС‚СЊ Р·Р°РІРёСЃРёРјРѕСЃС‚Рё: pip install -r requirements.txt
+
+    РќР°СЃС‚СЂРѕРёС‚СЊ API РєР»СЋС‡Рё РІ .env
+
+    Р—Р°РїСѓСЃС‚РёС‚СЊ: python main.py
+
+
+=== requirements.txt ===
+
+pybit>=2.6.0
+pandas>=1.3.0
+numpy>=1.21.0
+matplotlib>=3.4.0
+python-dotenv>=0.19.0
+ta-lib>=0.4.0  # Р”Р»СЏ С‚РµС…РЅРёС‡РµСЃРєРёС… РёРЅРґРёРєР°С‚РѕСЂРѕРІ
+
+
+=== utils\__init__.py ===
+
+
+
+=== utils\helpers.py ===
+
+
+
+=== utils\logger.py ===
+
+import logging
+import os
+
+def setup_logger(name, log_file='logs/evolution.log', level=logging.INFO):
+    """РќР°СЃС‚СЂРѕР№РєР° Р»РѕРіРіРµСЂР°"""
+    if not os.path.exists('logs'):
+        os.makedirs('logs')
+    
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    
+    handler = logging.FileHandler(log_file)
+    handler.setFormatter(formatter)
+    
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
+    
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
+    logger.addHandler(handler)
+    logger.addHandler(console_handler)
+    
+    return logger
+
+
+
+
+=== analysis\__init__.py ===
+# шибка: не удалось декодировать файл: C:\Users\satan\Documents\trading\evol-robot\bybit_evolution_bot\analysis\__init__.py
+
+=== analysis\global_params.py ===
+# шибка: не удалось декодировать файл: C:\Users\satan\Documents\trading\evol-robot\bybit_evolution_bot\analysis\global_params.py
+
+=== analysis\metrics.py ===
+import numpy as np
+from typing import List, Dict, Any
+
+class AdvancedMetrics:
+    @staticmethod
+    def calculate_sharpe_ratio(returns: List[float], risk_free_rate: float = 0.0) -> float:
+        if len(returns) < 2 or np.std(returns) == 0:
+            return 0.0
+        return (np.mean(returns) - risk_free_rate) / np.std(returns) * np.sqrt(365 * 24 * 12)  # Годовая доходность с учетом минутных данных
+
+    @staticmethod
+    def calculate_max_drawdown(balances: List[float]) -> float:
+        peak = balances[0]
+        max_drawdown = 0
+        for balance in balances:
+            if balance > peak:
+                peak = balance
+            drawdown = (peak - balance) / peak
+            if drawdown > max_drawdown:
+                max_drawdown = drawdown
+        return max_drawdown
+
+    @staticmethod
+    def calculate_profit_factor(trades: List[Dict[str, Any]]) -> float:
+        gross_profit = sum(trade.get('revenue', 0) for trade in trades if trade.get('action') == 'sell')
+        gross_loss = abs(sum(trade.get('cost', 0) for trade in trades if trade.get('action') == 'buy'))
+        
+        if gross_loss == 0:
+            return 10.0  # Если нет убытков
+        return gross_profit / gross_loss
+
+    @staticmethod
+    def calculate_win_rate(trades: List[Dict[str, Any]]) -> float:
+        if not trades:
+            return 0.0
+        profitable_trades = sum(1 for trade in trades if trade.get('revenue', 0) > trade.get('cost', 0))
+        return profitable_trades / len(trades)
+
+    @staticmethod
+    def calculate_consistency(returns: List[float]) -> float:
+        if len(returns) < 2:
+            return 0.0
+        return 1 - (np.std(returns) / np.mean(returns)) if np.mean(returns) != 0 else 0.0
+
+=== analysis\reporter.py ===
+# шибка: не удалось декодировать файл: C:\Users\satan\Documents\trading\evol-robot\bybit_evolution_bot\analysis\reporter.py
+
+=== analysis\visualizer.py ===
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+import numpy as np
+
+class RaceVisualizer:
+    def __init__(self, evolution_manager):
+        self.em = evolution_manager
+        self.fig, self.ax = plt.subplots(figsize=(15, 8))
+        self.scatter = None
+        self.annotation = None
+        
+    def setup_plot(self):
+        self.ax.set_xlim(0, 100)
+        self.ax.set_ylim(0, 100)
+        self.ax.set_title('Эволюционная гонка торговых роботов')
+        self.ax.set_xlabel('Производительность')
+        self.ax.set_ylabel('Роботы')
+        
+    def update(self, frame):
+        if not self.em.population:
+            return
+            
+        # Обновляем данные
+        profits = [robot.current_profit for robot in self.em.population]
+        sizes = [abs(profit) * 1000 for profit in profits]  # Размер точки зависит от прибыли
+        cycles = [robot.survived_cycles for robot in self.em.population]
+        children = [robot.children_count for robot in self.em.population]
+        ids = [robot.robot_id for robot in self.em.population]
+        
+        # Очищаем и перерисовываем
+        self.ax.clear()
+        self.setup_plot()
+        
+        scatter = self.ax.scatter(profits, range(len(profits)), s=sizes, alpha=0.5)
+        
+        # Добавляем аннотации
+        for i, (profit, cycle, child, id_val) in enumerate(zip(profits, cycles, children, ids)):
+            self.ax.annotate(f"ID:{id_val}\nC:{cycle}\nCh:{child}", 
+                            (profit, i), fontsize=8)
+        
+        return scatter,
+        
+    def animate(self):
+        ani = FuncAnimation(self.fig, self.update, interval=1000, blit=True)
+        plt.show()
+
+class MetricsVisualizer:
+    def plot_generation_metrics(self, evolution_manager):
+        generations = range(evolution_manager.generation + 1)
+        best_fitness = [gen['best_fitness'] for gen in evolution_manager.history]
+        avg_fitness = [gen['avg_fitness'] for gen in evolution_manager.history]
+        
+        plt.figure(figsize=(12, 6))
+        plt.plot(generations, best_fitness, label='Лучшая приспособленность', marker='o')
+        plt.plot(generations, avg_fitness, label='Средняя приспособленность', marker='s')
+        plt.xlabel('Поколение')
+        plt.ylabel('Приспособленность')
+        plt.title('Эволюция приспособленности по поколениям')
+        plt.legend()
+        plt.grid(True)
+        plt.savefig('fitness_evolution.png')
+        plt.close()
+
+=== config.json ===
+{
+    "testnet": true,
+    "symbol": "DOGEUSDT",
+    "timeframe": "5",
+    "account_type": "UNIFIED",
+    "generation_duration_minutes": 5,
+    "population_size": 20,
+    "initial_balance": 1000.0,
+    "global_trade_percentage": 0.1,
+    "fitness_weights": {
+        "profit": 1.0,
+        "sharpe_ratio": 0.8,
+        "max_drawdown": -1.5,
+        "profit_factor": 0.7,
+        "win_rate": 0.6,
+        "consistency": 0.5,
+        "risk_adjustment": 0.9
+    },
+    "fitness_threshold": 0.15
+}
+
+=== config\__init__.py ===
+# шибка: не удалось декодировать файл: C:\Users\satan\Documents\trading\evol-robot\bybit_evolution_bot\config\__init__.py
+
+=== config\settings.py ===
+# config/settings.py
+import json
+import os
+from typing import Dict, Any
+
+def load_config() -> Dict[str, Any]:
+    """
+    Загрузка конфигурации из файла config.json
+    
+    Returns:
+        Dict[str, Any]: Словарь с настройками конфигурации
+    """
+    config_path = os.path.join(os.path.dirname(__file__), '..', 'config.json')
+    
+    try:
+        with open(config_path, 'r') as f:
+            config = json.load(f)
+        return config
+    except FileNotFoundError:
+        print(f"Файл конфигурации {config_path} не найден. Используются настройки по умолчанию.")
+        return get_default_config()
+    except json.JSONDecodeError:
+        print(f"Ошибка парсинга JSON в файле {config_path}. Используются настройки по умолчанию.")
+        return get_default_config()
+
+def get_default_config() -> Dict[str, Any]:
+    """
+    Возвращает конфигурацию по умолчанию
+    
+    Returns:
+        Dict[str, Any]: Словарь с настройками конфигурации по умолчанию
+    """
+    return {
+        "testnet": True,
+        "symbol": "BTCUSDT",
+        "timeframe": "5",
+        "account_type": "UNIFIED",
+        "generation_duration_minutes": 5,
+        "population_size": 50,
+        "initial_balance": 1000.0,
+        "global_trade_percentage": 0.1,
+        "fitness_weights": {
+            "profit": 1.0,
+            "sharpe_ratio": 0.5,
+            "max_drawdown": -0.5
+        }
+    }
+
+# Для тестирования
+if __name__ == "__main__":
+    config = load_config()
+    print("Загруженная конфигурация:")
+    print(json.dumps(config, indent=2))
+
+=== core\__init__.py ===
+# шибка: не удалось декодировать файл: C:\Users\satan\Documents\trading\evol-robot\bybit_evolution_bot\core\__init__.py
+
+=== core\bybit_client.py ===
+# core/bybit_client.py
+from pybit.unified_trading import HTTP
+import os
+from dotenv import load_dotenv
+import logging
+from typing import Dict, Any  # Добавляем необходимые импорты
+from datetime import datetime
+
+# Загрузка переменных окружения
+load_dotenv()
+
+logger = logging.getLogger('bybit_client')
+
+class BybitClient:
+    def __init__(self, testnet=True):
+        self.testnet = testnet
+        self.api_key = os.getenv('BYBIT_API_KEY')
+        self.api_secret = os.getenv('BYBIT_API_SECRET')
+        
+        # Инициализация сессии
+        self.session = HTTP(
+            testnet=self.testnet,
+            api_key=self.api_key,
+            api_secret=self.api_secret,
+        )
+        
+        logger.info("BybitClient инициализирован")
+    
+    def get_account_balance(self):
+        """Получение баланса аккаунта"""
+        try:
+            response = self.session.get_wallet_balance(accountType="UNIFIED")
+            if response and 'result' in response:
+                # Для Unified Trading Account баланс находится по этому пути
+                total_balance = response['result']['list'][0]['totalWalletBalance']
+                return float(total_balance)
+            return 0.0
+        except Exception as e:
+            logger.error(f"Ошибка при получении баланса: {e}")
+            return 0.0
+    
+    def get_ticker(self, symbol):
+        """Получение информации о тикере"""
+        try:
+            response = self.session.get_tickers(
+                category="linear",
+                symbol=symbol
+            )
+            print(f"Raw ticker response: {response}")  # Для отладки
+            
+            if (response and 'result' in response and 
+                'list' in response['result'] and 
+                response['result']['list']):
+                return response
+            return None
+        except Exception as e:
+            logger.error(f"Ошибка при получении тикера: {e}")
+            return None
+    
+    def get_klines(self, symbol, interval, limit=100):
+        """Получение исторических данных (свечей)"""
+        try:
+            response = self.session.get_kline(
+                category="linear",
+                symbol=symbol,
+                interval=interval,
+                limit=limit
+            )
+            if response and 'result' in response:
+                return response['result']['list']
+            return []
+        except Exception as e:
+            logger.error(f"Ошибка при получении свечей: {e}")
+            return []
+    
+    def place_order(self, symbol: str, side: str, order_type: str, qty: float, price: float = None) -> Dict[str, Any]:
+        """Размещение ордера с гибкой проверкой минимального объема"""
+        try:
+            # Добавим логирование перед размещением
+            logger.info(f"Попытка размещения ордера: {side} {qty} {symbol} по цене {price}")
+            # Определяем минимальный объем в зависимости от символа
+            min_qty_rules = {
+                'BTCUSDT': 0.001,   # Минимальный объем для BTCUSDT
+                'DOGEUSDT': 100.0,   # Минимальный объем для DOGEUSDT (100 DOGE)
+                # Добавьте другие пары по мере необходимости
+            }
+            
+            # Получаем минимальный объем для символа или используем значение по умолчанию
+            min_qty = min_qty_rules.get(symbol, 1.0)  # Значение по умолчанию - 1
+            
+            if qty < min_qty:
+                logger.warning(f"Объем {qty} меньше минимального {min_qty} для {symbol}")
+                # Для некоторых пар можно увеличить объем до минимального
+                qty = min_qty
+                
+            # Проверяем, что цена указана для лимитных ордеров
+            if order_type == "Limit" and price is None:
+                logger.error("Для лимитного ордера должна быть указана цена")
+                return {}
+            
+            # Проверяем, что цена положительная
+            if price is not None and price <= 0:
+                logger.error(f"Некорректная цена: {price}")
+                return {}
+            
+            order_params = {
+                "category": "linear",
+                "symbol": symbol,
+                "side": side,
+                "orderType": order_type,
+                "qty": str(qty),
+                "timeInForce": "GTC"
+            }
+            
+            if price:
+                order_params["price"] = str(price)
+                
+            response = self.session.place_order(**order_params)
+            if response and 'result' in response:
+                logger.info(f"Ордер размещен: {response['result']['orderId']}")
+                return response['result']
+            return {}
+        except Exception as e:
+            # Убираем emoji из сообщения об ошибке для избежания проблем с кодировкой
+            error_msg = str(e).replace('✅', '').replace('💰', '').replace('→', '->')
+            logger.error(f"Ошибка при размещении ордера: {error_msg}")
+            return {}
+    
+    def get_open_orders(self, symbol):
+        """Получение списка открытых ордеров"""
+        try:
+            response = self.session.get_open_orders(
+                category="linear",
+                symbol=symbol
+            )
+            if response and 'result' in response:
+                return response['result']['list']
+            return []
+        except Exception as e:
+            logger.error(f"Ошибка при получении ордеров: {e}")
+            return []
+    
+    def cancel_order(self, symbol, order_id):
+        """Отмена ордера"""
+        try:
+            response = self.session.cancel_order(
+                category="linear",
+                symbol=symbol,
+                orderId=order_id
+            )
+            if response and 'result' in response:
+                logger.info(f"Ордер отменен: {response['result']}")
+                return response['result']
+            return None
+        except Exception as e:
+            logger.error(f"Ошибка при отмене ордера: {e}")
+            return None
+    
+    def get_positions(self, symbol):
+        """Получение информации о позициях"""
+        try:
+            response = self.session.get_positions(
+                category="linear",
+                symbol=symbol
+            )
+            if response and 'result' in response:
+                return response['result']['list']
+            return []
+        except Exception as e:
+            logger.error(f"Ошибка при получении позиций: {e}")
+            return []
+    
+    def get_api_key_info(self):
+        """Получение информации о API ключе"""
+        try:
+            response = self.session.get_api_key_information()
+            if response and 'result' in response:
+                return response['result']
+            return None
+        except Exception as e:
+            logger.error(f"Ошибка при получении информации о API ключе: {e}")
+            return None
+        
+    def get_market_data(self) -> Dict[str, Any]:
+        """Получение текущих рыночных данных (временная заглушка)"""
+        try:
+            # Пытаемся получить реальные данные
+            ticker = self.client.get_ticker(self.config['symbol'])
+            
+            if ticker and 'result' in ticker and 'list' in ticker['result'] and ticker['result']['list']:
+                ticker_data = ticker['result']['list'][0]
+                current_price = float(ticker_data.get('lastPrice', 50000.0))
+            else:
+                # Используем заглушку если не удалось получить данные
+                current_price = 50000.0 + (self.generation * 100)  # Имитируем движение цены
+                logger.warning("Используются тестовые данные")
+            
+            # Расчет дополнительных показателей
+            global_params = {
+                'current_price': current_price,
+                'trend_direction': 'bullish' if current_price > 50000 else 'bearish',
+                'volatility': 0.02,
+                'support_level': current_price * 0.98,
+                'resistance_level': current_price * 1.02,
+                'timestamp': datetime.now()
+            }
+            
+            return global_params
+            
+        except Exception as e:
+            logger.error(f"Ошибка при получении рыночных данных: {e}")
+            # Возвращаем тестовые данные
+            return {
+                'current_price': 50000.0 + (self.generation * 100),
+                'trend_direction': 'bullish',
+                'volatility': 0.02,
+                'support_level': 49000.0,
+                'resistance_level': 51000.0,
+                'timestamp': datetime.now()
+            }
+
+=== core\master.py ===
+import time
+import json
+from datetime import datetime
+from typing import List, Dict, Any
+from analysis.metrics import AdvancedMetrics
+import numpy as np
+from .worker import Robot
+from .strategies import SimpleStrategy
+from .bybit_client import BybitClient
+from evolution.genes import mutate, crossover
+from evolution.selection import select_parents
+from utils.logger import setup_logger
+
+logger = setup_logger('evolution_manager')
+
+class EvolutionManager:
+    def __init__(self, config: Dict[str, Any], client: BybitClient):
+        self.config = config
+        self.client = client  # Используем переданный клиент
+        self.population: List[Robot] = []
+        self.generation = 0
+        self.best_robots = []
+        self.history = []
+        
+        # Инициализация стратегии
+        self.strategy = SimpleStrategy(self.client)
+        
+        # Создание начальной популяции
+        self.create_initial_population()
+        
+    def create_initial_population(self):
+        """Создание начальной популяции роботов"""
+        logger.info(f"Создание начальной популяции из {self.config['population_size']} роботов")
+        
+        for i in range(self.config['population_size']):
+            robot = Robot(
+                robot_id=i,
+                generation_born=self.generation,
+                initial_balance=self.config['initial_balance'],
+                strategy=self.strategy,
+                gene=self._generate_random_gene()
+            )
+            self.population.append(robot)
+            
+        logger.info("Начальная популяция создана")
+    
+    def _generate_random_gene(self) -> Dict[str, Any]:
+        """Генерация случайного гена для робота"""
+        return {
+            'strategy_type': 'decision_tree',
+            'decision_tree': self._generate_random_decision_tree(),
+            'trade_percentage': np.random.uniform(0.01, 0.1),  # Случайный % от баланса
+            'risk_appetite': np.random.uniform(0.1, 0.9),     # Уровень склонности к риску
+            'max_trade_duration': np.random.randint(1, 10)    # Макс. длительность сделки в минутах
+        }
+    
+    def _generate_random_decision_tree(self) -> List[Dict[str, Any]]:
+        """Генерация случайного дерева решений"""
+        conditions = [
+            {'indicator': 'rsi', 'operator': '<', 'value': 30, 'action': 'buy'},
+            {'indicator': 'rsi', 'operator': '>', 'value': 70, 'action': 'sell'},
+            {'indicator': 'price_above_ema', 'operator': '==', 'value': True, 'action': 'buy'},
+            {'indicator': 'price_below_ema', 'operator': '==', 'value': True, 'action': 'sell'},
+            {'indicator': 'high_volume', 'operator': '==', 'value': True, 'action': 'buy'},
+            {'indicator': 'trend_alignment', 'operator': '==', 'value': True, 'action': 'buy'},
+        ]
+        
+        # Выбираем случайное подмножество условий
+        num_conditions = np.random.randint(2, len(conditions))
+        return list(np.random.choice(conditions, num_conditions, replace=False))
+    
+    def run_generation(self):
+        """Запуск одного поколения (торгового цикла)"""
+        logger.info(f"Запуск поколения {self.generation}")
+        start_time = datetime.now()
+        
+        # Запуск торговли для всех роботов
+        for minute in range(self.config['generation_duration_minutes']):
+            logger.info(f"Минута {minute + 1} из {self.config['generation_duration_minutes']}")
+            
+            # Получение текущих рыночных данных
+            market_data = self.get_market_data()
+            
+            for robot in self.population:
+                # Каждый робот принимает торговое решение
+                robot.trade(self.config['symbol'], market_data)
+                
+                # Обновляем информацию о прибыли
+                robot.update_profit(market_data['current_price'])
+            
+            # Пауза между минутами (в реальной торговле нужно использовать точное время)
+            time.sleep(1)  # Для теста используем 1 секунду вместо 1 минуты
+        
+        # Оценка результатов поколения
+        self.evaluate_generation()
+        
+        # Создание нового поколения
+        self.create_new_generation()
+        
+        # Сохранение истории
+        self.save_generation_history(start_time)
+        
+        logger.info(f"Поколение {self.generation} завершено")
+        self.generation += 1
+    
+    def get_market_data(self) -> Dict[str, Any]:
+        """Получение текущих рыночных данных"""
+        try:
+            ticker = self.client.get_ticker(self.config['symbol'])
+            
+            # Отладочная информация для понимания структуры ответа
+            print(f"Ticker response: {ticker}")
+            
+            # Получаем текущую цену из правильного поля
+            # Структура ответа: {'result': {'list': [{'lastPrice': '50000.00', ...}]}}
+            if ticker and 'result' in ticker and 'list' in ticker['result']:
+                ticker_data = ticker['result']['list'][0]
+                current_price = float(ticker_data.get('lastPrice', 0))
+            else:
+                current_price = 0
+                logger.warning("Не удалось получить данные тикера")
+            
+            # Получаем исторические данные
+            klines = self.client.get_klines(
+                self.config['symbol'], 
+                self.config['timeframe'], 
+                limit=50
+            )
+            
+            # Расчет дополнительных показателей (заглушки для теста)
+            global_params = {
+                'current_price': current_price,
+                'trend_direction': 'bullish',  # Заглушка
+                'volatility': 0.02,            # Заглушка
+                'support_level': current_price * 0.98,
+                'resistance_level': current_price * 1.02,
+                'ticker_data': ticker_data if 'ticker_data' in locals() else {}
+            }
+            
+            return global_params
+            
+        except Exception as e:
+            logger.error(f"Ошибка при получении рыночных данных: {e}")
+            # Возвращаем данные по умолчанию в случае ошибки
+            return {
+                'current_price': 50000.0,  # Значение по умолчанию
+                'trend_direction': 'bullish',
+                'volatility': 0.02,
+                'support_level': 49000.0,
+                'resistance_level': 51000.0
+            }
+    
+    def evaluate_generation(self):
+        """Расширенная оценка результатов поколения с multiple метриками"""
+        logger.info("Расширенная оценка результатов поколения")
+        
+        for robot in self.population:
+            # Расчет основных метрик
+            profit = robot.current_profit
+            returns = robot.returns
+            
+            # Расширенные метрики
+            sharpe_ratio = AdvancedMetrics.calculate_sharpe_ratio(returns)
+            max_drawdown = AdvancedMetrics.calculate_max_drawdown(robot.balance_history)
+            profit_factor = AdvancedMetrics.calculate_profit_factor(robot.trades)
+            win_rate = AdvancedMetrics.calculate_win_rate(robot.trades)
+            consistency = AdvancedMetrics.calculate_consistency(returns)
+            
+            # Базовые компоненты
+            profit_component = profit / robot.initial_balance
+            risk_component = 1 - max_drawdown
+            
+            # Взвешенная fitness функция
+            robot.fitness = (
+                self.config['fitness_weights']['profit'] * profit_component +
+                self.config['fitness_weights']['sharpe_ratio'] * sharpe_ratio +
+                self.config['fitness_weights']['max_drawdown'] * risk_component +
+                self.config['fitness_weights']['profit_factor'] * profit_factor +
+                self.config['fitness_weights']['win_rate'] * win_rate +
+                self.config['fitness_weights']['consistency'] * consistency
+            )
+            
+            # Логирование метрик для отладки
+            logger.debug(f"Робот {robot.robot_id}: "
+                        f"Прибыль={profit:.2f}, "
+                        f"Шарп={sharpe_ratio:.3f}, "
+                        f"Просадка={max_drawdown:.3f}, "
+                        f"Проф. фактор={profit_factor:.3f}, "
+                        f"Винрейт={win_rate:.3f}, "
+                        f"Консистентность={consistency:.3f}, "
+                        f"Фитнес={robot.fitness:.6f}")
+        
+        # Сортировка по fitness
+        self.population.sort(key=lambda x: x.fitness, reverse=True)
+        
+        # Отбор лучших
+        best_robot = self.population[0]
+        logger.info(f"Лучший робот поколения: ID {best_robot.robot_id}, "
+                   f"Фитнес: {best_robot.fitness:.6f}, "
+                   f"Прибыль: {best_robot.current_profit:.2f}")
+    
+    def create_new_generation(self):
+        """Создание нового поколения роботов"""
+        logger.info("Создание нового поколения")
+        
+        # Отбор родителей
+        parents = select_parents(self.population, elite_size=5)
+        
+        # Создание нового поколения
+        new_population = []
+        
+        # Добавляем элитных роботов без изменений
+        for i in range(min(5, len(parents))):
+            elite_robot = parents[i]
+            elite_robot.survived_cycles += 1
+            new_population.append(elite_robot)
+        
+        # Создаем потомков от лучших роботов
+        while len(new_population) < self.config['population_size']:
+            parent1, parent2 = np.random.choice(parents[:10], 2, replace=False)
+            child_gene = crossover(parent1.gene, parent2.gene)
+            child_gene = mutate(child_gene)
+            
+            child = Robot(
+                robot_id=len(new_population),
+                generation_born=self.generation + 1,
+                initial_balance=self.config['initial_balance'],
+                strategy=self.strategy,
+                gene=child_gene
+            )
+            
+            # Наследование "опыта" от родителей
+            child.survived_cycles = max(parent1.survived_cycles, parent2.survived_cycles) - 1
+            
+            new_population.append(child)
+        
+        self.population = new_population
+    
+    def save_generation_history(self, start_time):
+        """Сохранение истории поколения"""
+        generation_info = {
+            'generation': self.generation,
+            'start_time': start_time.isoformat(),
+            'end_time': datetime.now().isoformat(),
+            'best_robot': {
+                'id': self.population[0].robot_id,
+                'profit': self.population[0].current_profit,
+                'fitness': self.population[0].fitness
+            },
+            'avg_profit': np.mean([r.current_profit for r in self.population]),
+            'avg_fitness': np.mean([r.fitness for r in self.population])
+        }
+        
+        self.history.append(generation_info)
+        
+        # Сохранение в файл
+        with open(f'data/generation_{self.generation}.json', 'w') as f:
+            json.dump(generation_info, f, indent=2)
+    
+    def save_final_results(self):
+        """Сохранение финальных результатов эволюции"""
+        results = {
+            'total_generations': self.generation,
+            'best_fitness': self.best_robots[-1].fitness if self.best_robots else 0,
+            'best_profit': self.best_robots[-1].current_profit if self.best_robots else 0,
+            'final_population_size': len(self.population),
+            'execution_time': datetime.now() - self.start_time
+        }
+        
+        with open('data/final_results.json', 'w') as f:
+            json.dump(results, f, indent=2)
+
+    def should_continue_evolution(self):
+        """Определение необходимости продолжения эволюции"""
+        if self.generation >= self.config.get('max_generations', 20):
+            return False
+            
+        if (self.best_robots and 
+            self.best_robots[-1].fitness > self.config.get('target_fitness', 0.3)):
+            return False
+            
+        return True
+
+    def should_continue_evolution(self) -> bool:
+        """Проверка условий продолжения эволюции"""
+        if self.generation >= 100:  # Максимальное количество поколений
+            return False
+        
+        # Проверка целевой прибыли
+        if len(self.best_robots) > 0:
+            last_profit = self.best_robots[-1].current_profit
+            if last_profit >= self.config['initial_balance'] * 0.1:  # 10% прибыли
+                return True
+        
+        return True
+
+=== core\strategies.py ===
+import talib
+import random
+import numpy as np
+from utils.logger import setup_logger
+logger = setup_logger('robot')
+
+class SimpleStrategy:
+    def __init__(self, client):
+        self.client = client
+        self.name = "simple_random"
+        
+    def generate_signal(self, symbol, market_data, robot=None):
+        """Генерация торгового сигнала с использованием % от баланса"""
+        current_price = market_data['current_price']
+        
+        # Увеличим частоту торгов для более volatile актива like DOGE
+        decision = random.choice(['buy', 'sell', 'hold', 'buy', 'sell'])  # Чаще торгуем
+              
+         # Увеличим базовый процент торговли для DOGE
+        base_trade_percentage = 0.1  # 10% вместо 5%
+
+        # Определяем объем в зависимости от символа
+        if symbol == "DOGEUSDT":
+            trade_percentage = robot.gene.get('trade_percentage', 0.1)  # 10% для DOGE
+            usd_amount = robot.balance * trade_percentage
+            qty = usd_amount / current_price
+            qty = round(qty, 0)  # Округляем до целого числа DOGE
+        else:
+            # Логика для других символов (BTCUSDT)
+            trade_percentage = robot.gene.get('trade_percentage', 0.05)
+            usd_amount = robot.balance * trade_percentage
+            qty = usd_amount / current_price
+            qty = round(qty, 4)  # 4 знака для BTC
+
+        if robot:
+            # Используем персональный процент робота или базовый
+            trade_percentage = robot.gene.get('trade_percentage', base_trade_percentage)
+            usd_amount = robot.balance * trade_percentage
+            
+            # В метод generate_signal после расчета объема
+            logger.debug(f"Робот {robot.robot_id if robot else 'N/A'}: "
+                        f"баланс={robot.balance if robot else 'N/A'}, "
+                        f"процент={trade_percentage}, "
+                        f"объем={qty} {symbol}")
+
+            # Для DOGE убедимся, что объем не меньше минимального
+            if symbol == "DOGEUSDT":
+                min_usd_amount = 100 * current_price  # Минимальная сумма в USDT для 100 DOGE
+                if usd_amount < min_usd_amount:
+                    usd_amount = min_usd_amount * 1.2  # Добавляем 20% запаса
+                
+            qty = usd_amount / current_price
+            
+            # Округляем объем в зависимости от символа
+            if symbol == "DOGEUSDT":
+                qty = round(qty)  # Целое число для DOGE
+            else:
+                qty = round(qty, 4)  # 4 знака для BTC
+        else:
+            # Запасной вариант
+            qty = 100  # Минимальный объем для DOGE
+        
+        if decision == 'buy':
+            buy_price = round(current_price * 0.99, 2)
+            return {
+                'action': 'buy',
+                'price': buy_price,
+                'qty': qty,
+                'reason': f'buy_signal_at_{buy_price}'
+            }
+        elif decision == 'sell':
+            sell_price = round(current_price * 1.01, 2)
+            return {
+                'action': 'sell',
+                'price': sell_price,
+                'qty': qty,
+                'reason': f'sell_signal_at_{sell_price}'
+            }
+        else:
+           return {
+            'action': 'hold',
+            'price': current_price,  # ✅ Добавляем цену даже для hold
+            'qty': 0,
+            'reason': 'no_clear_signal'
+        }
+
+class AdvancedStrategy:
+    def __init__(self, client):
+        self.client = client
+        self.name = "advanced_technical"
+        
+    def calculate_indicators(self, historical_data):
+        closes = np.array([float(x[4]) for x in historical_data])
+        
+        # RSI
+        rsi = talib.RSI(closes, timeperiod=14)
+        
+        # MACD
+        macd, macd_signal, macd_hist = talib.MACD(closes)
+        
+        # Bollinger Bands
+        upper_band, middle_band, lower_band = talib.BBANDS(closes)
+        
+        return {
+            'rsi': rsi[-1],
+            'macd': macd[-1],
+            'macd_signal': macd_signal[-1],
+            'bb_upper': upper_band[-1],
+            'bb_middle': middle_band[-1],
+            'bb_lower': lower_band[-1]
+        }
+    
+    def generate_signal(self, symbol, market_data, robot=None):
+        # Получаем исторические данные
+        klines = self.client.get_klines(symbol, "5", limit=50)
+        indicators = self.calculate_indicators(klines)
+        
+        # Создаем сложное правило на основе индикаторов
+        signal = self.complex_decision(indicators, market_data, robot)
+        return signal
+
+=== core\worker.py ===
+import random
+from datetime import datetime
+from typing import Any, Dict
+from utils.logger import setup_logger
+logger = setup_logger('robot')
+
+class Robot:
+    def __init__(self, robot_id, generation_born, initial_balance, strategy, gene=None):
+        self.robot_id = robot_id
+        self.generation_born = generation_born
+        self.balance = initial_balance
+        self.initial_balance = initial_balance
+        self.strategy = strategy
+        self.gene = gene if gene else self._generate_random_gene()
+        self.positions = []
+        self.trades = []
+        self.children_count = 0
+        self.current_profit = 0.0
+        self.survived_cycles = 0
+        self.fitness = 0.0
+        self.balance_history = [initial_balance]
+        self.returns = []
+        self.trades = []  # Более детальная информация о сделках
+        
+    def trade(self, symbol, market_data):
+        """Выполнение торговой операции с проверкой баланса"""
+        # Передаем self (робота) в метод generate_signal
+        signal = self.strategy.generate_signal(symbol, market_data, self)
+        
+        # Рассчитываем стоимость ордера
+        order_cost = signal['price'] * signal['qty']
+        
+        # Проверяем достаточно ли средств
+        if signal['action'] == 'buy' and order_cost > self.balance:
+            logger.debug(f"Робот {self.robot_id}: недостаточно средств. Нужно {order_cost}, есть {self.balance}")
+            return False
+            
+        if signal['action'] == 'sell' and not any(p['symbol'] == symbol for p in self.positions):
+            logger.debug(f"Робот {self.robot_id}: нет позиции для продажи")
+            return False
+        
+        try:
+            if signal['action'] == 'buy':
+                order = self.strategy.client.place_order(
+                    symbol=symbol,
+                    side="Buy",
+                    order_type="Limit",
+                    qty=signal['qty'],
+                    price=signal['price']
+                )
+                if order:
+                    # Вычитаем стоимость из баланса
+                    self.balance -= order_cost
+                    self.trades.append({
+                        'action': 'buy',
+                        'price': signal['price'],
+                        'qty': signal['qty'],
+                        'timestamp': datetime.now(),
+                        'cost': order_cost
+                    })
+                    return True
+                    
+            elif signal['action'] == 'sell':
+                order = self.strategy.client.place_order(
+                    symbol=symbol,
+                    side="Sell",
+                    order_type="Limit",
+                    qty=signal['qty'],
+                    price=signal['price']
+                )
+                if order:
+                    # Добавляем выручку к балансу
+                    revenue = signal['price'] * signal['qty']
+                    self.balance += revenue
+                    self.trades.append({
+                        'action': 'sell',
+                        'price': signal['price'],
+                        'qty': signal['qty'],
+                        'timestamp': datetime.now(),
+                        'revenue': revenue
+                    })
+                    return True
+                    
+        except Exception as e:
+            logger.warning(f"Робот {self.robot_id} не смог разместить ордер: {str(e)[:100]}...")
+            
+        return False
+        
+    def update_profit(self, current_price):
+        """Обновление информации о прибыли"""
+        # Здесь будет логика расчета текущей прибыли
+        # Пока просто случайное значение для теста
+        self.current_profit = random.uniform(-0.05, 0.1) * self.initial_balance
+        return self.current_profit
+    
+    def update_after_trade(self, trade_result: Dict[str, Any]):
+        self.trades.append(trade_result)
+        current_balance = self.balance
+        previous_balance = self.balance_history[-1]
+        
+        # Расчет доходности
+        if previous_balance > 0:
+            returns = (current_balance - previous_balance) / previous_balance
+            self.returns.append(returns)
+        
+        self.balance_history.append(current_balance)
+
+=== data\generation_0.json ===
+{
+  "generation": 0,
+  "start_time": "2025-09-03T03:57:33.160853",
+  "end_time": "2025-09-03T03:57:41.930877",
+  "best_robot": {
+    "id": 18,
+    "profit": -43.647459702846405,
+    "fitness": 5.4563525402971536
+  },
+  "avg_profit": 12.28988794259593,
+  "avg_fitness": -0.012710112057404088
+}
+
+=== data\generation_1.json ===
+{
+  "generation": 1,
+  "start_time": "2025-09-03T03:57:43.931306",
+  "end_time": "2025-09-03T03:57:51.495033",
+  "best_robot": {
+    "id": 14,
+    "profit": -14.324905459629562,
+    "fitness": 5.485675094540371
+  },
+  "avg_profit": 11.575026696127383,
+  "avg_fitness": 0.33657502669612743
+}
+
+=== data\generation_2.json ===
+{
+  "generation": 2,
+  "start_time": "2025-09-03T03:57:53.497292",
+  "end_time": "2025-09-03T03:58:00.826943",
+  "best_robot": {
+    "id": 10,
+    "profit": 76.47609908162748,
+    "fitness": 5.576476099081628
+  },
+  "avg_profit": 22.560092518390398,
+  "avg_fitness": -0.002439907481609571
+}
+
+=== data\generation_3.json ===
+{
+  "generation": 3,
+  "start_time": "2025-09-03T03:58:02.840344",
+  "end_time": "2025-09-03T03:58:10.337326",
+  "best_robot": {
+    "id": 16,
+    "profit": 61.3250217389662,
+    "fitness": 5.561325021738966
+  },
+  "avg_profit": 21.69790095664152,
+  "avg_fitness": -0.0033020990433584863
+}
+
+=== data\generation_4.json ===
+{
+  "generation": 4,
+  "start_time": "2025-09-03T03:58:12.350923",
+  "end_time": "2025-09-03T03:58:19.587848",
+  "best_robot": {
+    "id": 5,
+    "profit": 96.40089434769898,
+    "fitness": -1.403599105652301
+  },
+  "avg_profit": 21.95551481953371,
+  "avg_fitness": -0.35304448518046627
+}
+
+=== data\generation_5.json ===
+{
+  "generation": 5,
+  "start_time": "2025-09-03T03:58:21.597581",
+  "end_time": "2025-09-03T03:58:28.682608",
+  "best_robot": {
+    "id": 7,
+    "profit": 36.90701848081523,
+    "fitness": 5.536907018480815
+  },
+  "avg_profit": 14.728840720834109,
+  "avg_fitness": 0.3397288407208341
+}
+
+=== data\generation_6.json ===
+{
+  "generation": 6,
+  "start_time": "2025-09-03T03:58:30.685317",
+  "end_time": "2025-09-03T03:58:37.812146",
+  "best_robot": {
+    "id": 17,
+    "profit": 79.95269539144147,
+    "fitness": 5.579952695391442
+  },
+  "avg_profit": 14.978229488326315,
+  "avg_fitness": 0.6899782294883263
+}
+
+=== data\generation_7.json ===
+{
+  "generation": 7,
+  "start_time": "2025-09-03T03:58:39.823538",
+  "end_time": "2025-09-03T03:58:47.026942",
+  "best_robot": {
+    "id": 19,
+    "profit": 72.1022314533223,
+    "fitness": 5.572102231453322
+  },
+  "avg_profit": 14.609029851376434,
+  "avg_fitness": 0.3396090298513765
+}
+
+=== data\generation_8.json ===
+{
+  "generation": 8,
+  "start_time": "2025-09-03T03:58:49.036935",
+  "end_time": "2025-09-03T03:58:56.101196",
+  "best_robot": {
+    "id": 5,
+    "profit": 85.93204756689342,
+    "fitness": 5.585932047566893
+  },
+  "avg_profit": 15.356186819409292,
+  "avg_fitness": 0.6903561868194092
+}
+
+=== data\generation_9.json ===
+{
+  "generation": 9,
+  "start_time": "2025-09-03T03:58:58.111089",
+  "end_time": "2025-09-03T03:59:05.026277",
+  "best_robot": {
+    "id": 13,
+    "profit": 78.51555133576267,
+    "fitness": 5.578515551335762
+  },
+  "avg_profit": 20.26429501356621,
+  "avg_fitness": 0.6952642950135661
+}
+
+=== evolution\__init__.py ===
+# шибка: не удалось декодировать файл: C:\Users\satan\Documents\trading\evol-robot\bybit_evolution_bot\evolution\__init__.py
+
+=== evolution\crossover.py ===
+# шибка: не удалось декодировать файл: C:\Users\satan\Documents\trading\evol-robot\bybit_evolution_bot\evolution\crossover.py
+
+=== evolution\genes.py ===
+import numpy as np
+import random
+
+def mutate(gene: dict) -> dict:
+    """Мутация гена робота"""
+    mutated_gene = gene.copy()
+    
+    # Мутация торгового процента
+    if random.random() < 0.3:  # 30% вероятность мутации
+        mutated_gene['trade_percentage'] = np.random.uniform(0.01, 0.1)
+    
+    # Мутация склонности к риску
+    if random.random() < 0.3:
+        mutated_gene['risk_appetite'] = np.clip(
+            gene['risk_appetite'] + np.random.normal(0, 0.1), 0.1, 0.9
+        )
+    
+    # Мутация дерева решений
+    if random.random() < 0.4:
+        if len(mutated_gene['decision_tree']) > 2:
+            # Удаляем случайное условие
+            if random.random() < 0.5:
+                del mutated_gene['decision_tree'][random.randint(0, len(mutated_gene['decision_tree']) - 1)]
+            # Добавляем новое условие
+            else:
+                new_condition = {
+                    'indicator': random.choice(['rsi', 'price_above_ema', 'volume']),
+                    'operator': random.choice(['<', '>', '==']),
+                    'value': random.randint(20, 80),
+                    'action': random.choice(['buy', 'sell'])
+                }
+                mutated_gene['decision_tree'].append(new_condition)
+    
+    return mutated_gene
+
+def crossover(gene1: dict, gene2: dict) -> dict:
+    """Скрещивание двух генов"""
+    child_gene = {}
+    
+    # Скрещивание торгового процента
+    child_gene['trade_percentage'] = (gene1['trade_percentage'] + gene2['trade_percentage']) / 2
+    
+    # Скрещивание склонности к риску
+    child_gene['risk_appetite'] = (gene1['risk_appetite'] + gene2['risk_appetite']) / 2
+    
+    # Скрещивание дерева решений
+    child_gene['decision_tree'] = gene1['decision_tree'][:len(gene1['decision_tree'])//2] + \
+                                 gene2['decision_tree'][len(gene2['decision_tree'])//2:]
+    
+    return child_gene
+
+=== evolution\mutation.py ===
+# шибка: не удалось декодировать файл: C:\Users\satan\Documents\trading\evol-robot\bybit_evolution_bot\evolution\mutation.py
+
+=== evolution\selection.py ===
+import numpy as np
+from utils.logger import setup_logger
+
+logger = setup_logger('evolution_manager')
+def select_parents(population, elite_size=5):
+    """Отбор родителей для следующего поколения с обработкой отрицательных fitness"""
+    # Отбираем элитных особей
+    elites = population[:elite_size]
+    
+    # Получаем значения приспособленности
+    fitnesses = np.array([robot.fitness for robot in population])
+    
+    # Обрабатываем отрицательные значения fitness
+    min_fitness = np.min(fitnesses)
+    if min_fitness < 0:
+        # Сдвигаем все значения, чтобы минимальное было равно 0
+        shifted_fitnesses = fitnesses - min_fitness + 1e-10  # Добавляем маленькое значение для избежания деления на 0
+    else:
+        shifted_fitnesses = fitnesses + 1e-10  # Добавляем маленькое значение для избежания деления на 0
+    
+    # Вычисляем вероятности выбора
+    total_fitness = np.sum(shifted_fitnesses)
+    probabilities = shifted_fitnesses / total_fitness
+    
+    # Проверяем, что все вероятности неотрицательные
+    if np.any(probabilities < 0):
+        # Если есть отрицательные вероятности, используем равномерное распределение
+        probabilities = np.ones(len(population)) / len(population)
+        logger.warning("Обнаружены отрицательные вероятности, используется равномерное распределение")
+    
+    # Отбираем родителей
+    selected = list(np.random.choice(
+        population, 
+        size=len(population) - elite_size, 
+        p=probabilities,
+        replace=False
+    ))
+    
+    return elites + selected
+
+=== main.py ===
+# main.py
+from core.bybit_client import BybitClient
+from core.master import EvolutionManager
+from analysis.visualizer import RaceVisualizer, MetricsVisualizer
+from config.settings import load_config
+import logging
+import time
+import os
+
+# Настройка логирования
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('logs/evolution.log'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
+
+def main():
+    try:
+        # Создаем папки для данных если их нет
+        os.makedirs('logs', exist_ok=True)
+        os.makedirs('data', exist_ok=True)
+        
+        # Загрузка конфигурации
+        logger.info("Загрузка конфигурации...")
+        config = load_config()
+        
+        # Инициализация клиента API
+        logger.info("Инициализация клиента API...")
+        client = BybitClient(testnet=config['testnet'])
+        
+        # Проверка подключения
+        logger.info("Проверка подключения к API...")
+        key_info = client.get_api_key_info()
+        if key_info:
+            logger.info(f"[УСПЕХ] API Key информация получена:")
+            logger.info(f"   - Права: {key_info.get('permissions', {})}")
+            logger.info(f"   - UTA статус: {key_info.get('uta', 'N/A')} (1 = UTA аккаунт)")
+        else:
+            logger.warning("Не удалось получить информацию о API ключе")
+        
+        # Проверка баланса
+        logger.info("Проверка баланса...")
+        balance = client.get_account_balance()
+        logger.info(f"[БАЛАНС] Баланс кошелька: {balance} USDT")
+        
+        # Проверка минимального баланса
+        min_balance = 100.0
+        if balance < min_balance:
+            logger.error(f"Недостаточный баланс: {balance} < {min_balance}. Пополните тестовый счет.")
+            return
+        
+        # Тестирование получения тикера
+        logger.info("Тестирование получения данных тикера...")
+        ticker = client.get_ticker(config['symbol'])
+        logger.info(f"Данные тикера получены: {bool(ticker)}")
+        
+        # Создание мастера эволюции
+        logger.info("Создание мастера эволюции...")
+        evolution_manager = EvolutionManager(config, client)
+        
+        # Создание визуализаторов
+        logger.info("Создание визуализаторов...")
+        race_visualizer = RaceVisualizer(evolution_manager)
+        metrics_visualizer = MetricsVisualizer()
+        
+        # Основной цикл эволюции
+        logger.info("Запуск основного цикла эволюции...")
+        generation_count = 0
+        max_generations = 10  # Увеличим количество поколений
+        
+        while generation_count < max_generations and evolution_manager.should_continue_evolution():
+            logger.info(f"=== ПОКОЛЕНИЕ {generation_count} ===")
+            
+            try:
+                # Запуск поколения
+                evolution_manager.run_generation()
+                logger.info(f"Поколение {generation_count} завершено успешно")
+                
+                # Обновление визуализации
+                race_visualizer.update()
+                
+                # Визуализация метрик
+                metrics_visualizer.plot_generation_metrics(evolution_manager)
+                
+                # Сохранение лучших роботов если превышен порог fitness
+                if (evolution_manager.best_robots and 
+                    evolution_manager.best_robots[-1].fitness > config.get('fitness_threshold', 0.15)):
+                    evolution_manager.save_best_robots()
+                
+            except Exception as e:
+                logger.error(f"Ошибка в поколении {generation_count}: {e}")
+                import traceback
+                traceback.print_exc()
+                # Продолжаем выполнение несмотря на ошибку
+            
+            generation_count += 1
+            time.sleep(2)  # Пауза между поколениями
+        
+        # Финальный отчет
+        logger.info("=== ЭВОЛЮЦИЯ ЗАВЕРШЕНА ===")
+        
+        if hasattr(evolution_manager, 'best_robots') and evolution_manager.best_robots:
+            best_robot = evolution_manager.best_robots[-1]
+            logger.info(f"Лучший робот: ID {best_robot.robot_id}")
+            logger.info(f"Прибыль: {best_robot.current_profit:.2f} USDT")
+            logger.info(f"Фитнес: {best_robot.fitness:.6f}")
+            logger.info(f"Поколение рождения: {best_robot.generation_born}")
+            logger.info(f"Пережито циклов: {best_robot.survived_cycles}")
+        else:
+            logger.info("Нет данных о лучших роботах")
+            
+        # Сохранение финальных результатов
+        evolution_manager.save_final_results()
+        
+    except Exception as e:
+        logger.error(f"Критическая ошибка в main: {e}")
+        import traceback
+        traceback.print_exc()
+
+if __name__ == "__main__":
+    main()
+
+=== README.md ===
+
+Вот описание проекта который мы с тобой разрабатывали в прошлом чате, пока не закончилась длина контекста.
+
+Эволюционный торговый бот для Bybit
+📋 Общее описание
+
+Проект представляет собой эволюционную торговую систему на Python, которая использует генетический алгоритм для создания и оптимизации роя торговых роботов на платформе Bybit.
+🎯 Основная концепция
+
+Эволюционный алгоритм, где:
+    Каждое "поколение" - это торговый цикл (5 минут)
+    Роботы торгуют с различными стратегиями
+    В новое поколение переходят только наиболее успешные роботы
+    Происходит скрещивание и мутация лучших стратегий
+ Архитектура проекта
+ /bybit_evolution_bot/
+├── core/
+│   ├── master.py           # EvolutionManager - управление эволюцией
+│   ├── worker.py           # Robot - класс торгового робота
+│   ├── strategies.py       # Торговые стратегии
+│   └── bybit_client.py     # API клиент для Bybit
+├── evolution/
+│   ├── genes.py            # Гены, мутация, скрещивание
+│   └── selection.py        # Отбор родителей
+├── analysis/
+│   ├── visualizer.py       # Визуализация результатов
+│   ├── metrics.py          # Расчет метрик эффективности
+│   └── reporter.py         # Генерация отчетов
+├── config/
+│   └── settings.py         # Настройки конфигурации
+├── utils/
+│   └── logger.py           # Настройка логирования
+├── data/                   # Данные и результаты
+├── logs/                   # Логи выполнения
+├── main.py                 # Точка входа
+├── config.json             # Конфигурация
+└── requirements.txt        # Зависимости
+Ключевые компоненты
+1. BybitClient (core/bybit_client.py)
+
+    Работа с API Bybit (REST)
+
+    Размещение ордеров, получение баланса
+
+    Управление позициями
+
+    Поддержка тестового режима (testnet)
+
+2. EvolutionManager (core/master.py)
+
+    Управление эволюционным процессом
+
+    Создание поколений роботов
+
+    Оценка эффективности
+
+    Отбор и размножение лучших роботов
+
+3. Robot (core/worker.py)
+
+    Индивидуальный торговый агент
+
+    Собственный баланс и стратегия
+
+    Генетический код (параметры торговли)
+
+    Отслеживание позиций и сделок
+
+4. Торговые стратегии (core/strategies.py)
+
+    Простые и сложные стратегии
+
+    Использование технических индикаторов
+
+    Адаптация к рыночным условиям
+
+⚙️ Текущая конфигурация
+
+    Биржа: Bybit Testnet
+
+    Торговая пара: DOGEUSDT
+
+    Режим: Единый торговый счет (Unified Trading Account)
+
+    Размер популяции: 20 роботов
+
+    Длительность поколения: 5 минут
+
+    Начальный баланс: 1000 USDT на робота
+
+Генетический алгоритм
+Гены робота включают:
+
+    trade_percentage - % баланса для торговли
+
+    risk_appetite - склонность к риску
+
+    strategy_parameters - параметры стратегии
+
+    decision_tree - дерево торговых решений
+
+Процесс эволюции:
+
+    Инициализация - создание случайной популяции
+
+    Торговля - выполнение сделок в течение поколения
+
+    Оценка - расчет fitness функции
+
+    Отбор - выбор лучших роботов
+
+    Размножение - скрещивание и мутация
+
+    Повторение - создание нового поколения
+
+Fitness функция
+
+Многофакторная оценка эффективности:
+fitness = (
+    profit_weight * profit_factor +
+    sharpe_weight * sharpe_ratio + 
+    drawdown_weight * (1 - max_drawdown) +
+    consistency_weight * consistency_score
+)
+Текущий статус
+✅ Реализовано:
+
+    Интеграция с Bybit API
+
+    Базовый эволюционный алгоритм
+
+    Система управления позициями
+
+    Механизм закрытия сделок
+
+    Многофакторная оценка эффективности
+
+    Визуализация результатов
+
+🎯 Достигнутые результаты:
+
+    Успешное подключение к API Bybit
+
+    Корректное размещение ордеров
+
+    Прибыльность лучших роботов (~100 USDT за поколение)
+
+    Стабильная работа системы
+
+🔮 Планы развития
+
+    Улучшение стратегий - добавление технических индикаторов
+
+    Оптимизация алгоритма - улучшение механизма эволюции
+
+    Расширенная аналитика - детальная статистика эффективности
+
+    Risk management - система управления рисками
+
+    Бэктестинг - тестирование на исторических данных
+
+🛠️ Технический стек
+
+    Python 3.9.5+
+
+    pybit - API клиент Bybit
+
+    pandas/numpy - анализ данных
+
+    matplotlib - визуализация
+
+    TA-Lib - технические индикаторы
+
+📝 Как запустить
+
+    Установить зависимости: pip install -r requirements.txt
+
+    Настроить API ключи в .env
+
+    Запустить: python main.py
+
+=== requirements.txt ===
+pybit>=2.6.0
+pandas>=1.3.0
+numpy>=1.21.0
+matplotlib>=3.4.0
+python-dotenv>=0.19.0
+ta-lib>=0.4.0  # Для технических индикаторов
+
+=== utils\__init__.py ===
+# шибка: не удалось декодировать файл: C:\Users\satan\Documents\trading\evol-robot\bybit_evolution_bot\utils\__init__.py
+
+=== utils\helpers.py ===
+# шибка: не удалось декодировать файл: C:\Users\satan\Documents\trading\evol-robot\bybit_evolution_bot\utils\helpers.py
+
+=== utils\logger.py ===
+import logging
+import os
+
+def setup_logger(name, log_file='logs/evolution.log', level=logging.INFO):
+    """Настройка логгера"""
+    if not os.path.exists('logs'):
+        os.makedirs('logs')
+    
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    
+    handler = logging.FileHandler(log_file)
+    handler.setFormatter(formatter)
+    
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
+    
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
+    logger.addHandler(handler)
+    logger.addHandler(console_handler)
+    
+    return logger
+

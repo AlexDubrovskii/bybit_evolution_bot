@@ -19,9 +19,11 @@ class EvolutionManager:
         self.client = client  # Используем переданный клиент
         self.population: List[Robot] = []
         self.generation = 0
-        self.best_robots = []
-        self.history = []
-        
+
+        # Оба поля оставляем: history — сводки по поколениям, best_robots — список лучших (serializable dict)
+        self.history: List[Dict[str, Any]] = []
+        self.best_robots: List[Dict[str, Any]] = []
+
         # Инициализация стратегии
         self.strategy = SimpleStrategy(self.client)
         
@@ -259,16 +261,17 @@ class EvolutionManager:
     
     def save_final_results(self):
         """Сохранение финальных результатов эволюции"""
+        last_best = self.best_robots[-1] if self.best_robots else {}
         results = {
             'total_generations': self.generation,
-            'best_fitness': self.best_robots[-1].fitness if self.best_robots else 0,
-            'best_profit': self.best_robots[-1].current_profit if self.best_robots else 0,
+            'best_fitness': float(last_best.get('fitness', 0)) if isinstance(last_best, dict) else 0,
+            'best_profit': float(last_best.get('profit', 0)) if isinstance(last_best, dict) else 0,
             'final_population_size': len(self.population),
-            'execution_time': datetime.now() - self.start_time
+            'execution_time': (datetime.now() - getattr(self, 'start_time', datetime.now())).total_seconds()
         }
         
-        with open('data/final_results.json', 'w') as f:
-            json.dump(results, f, indent=2)
+        with open('data/final_results.json', 'w', encoding='utf-8') as f:
+            json.dump(results, f, indent=2, ensure_ascii=False)
 
     def should_continue_evolution(self):
         """Определение необходимости продолжения эволюции"""

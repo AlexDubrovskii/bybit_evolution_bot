@@ -180,32 +180,6 @@ class BybitClient:
         except Exception as e:
             logger.error(f"Ошибка при получении информации о API ключе: {e}")
             return None
-        
-    def get_market_data(self) -> Dict[str, Any]:
-        """Получение текущих рыночных данных (временная заглушка)"""
-        try:
-            # Пытаемся получить реальные данные
-            ticker = self.client.get_ticker(self.config['symbol'])
-            
-            if ticker and 'result' in ticker and 'list' in ticker['result'] and ticker['result']['list']:
-                ticker_data = ticker['result']['list'][0]
-                current_price = float(ticker_data.get('lastPrice', 50000.0))
-            else:
-                # Используем заглушку если не удалось получить данные
-                current_price = 50000.0 + (self.generation * 100)  # Имитируем движение цены
-                logger.warning("Используются тестовые данные")
-            
-            # Расчет дополнительных показателей
-            global_params = {
-                'current_price': current_price,
-                'trend_direction': 'bullish' if current_price > 50000 else 'bearish',
-                'volatility': 0.02,
-                'support_level': current_price * 0.98,
-                'resistance_level': current_price * 1.02,
-                'timestamp': datetime.now()
-            }
-            
-            return global_params
             
         except Exception as e:
             logger.error(f"Ошибка при получении рыночных данных: {e}")
