@@ -1,2 +1,19 @@
 .env
-venv
+venv/
+# Python cache
+__pycache__/
+*.pyc
+
+# Logs and output data
+logs/
+*.log
+
+data/
+# Keep a placeholder if needed: use `data/.gitkeep` to retain the dir
+
+# Generated artifacts
+fitness_evolution.png
+
+# IDE/editor
+.vscode/
+.idea/
