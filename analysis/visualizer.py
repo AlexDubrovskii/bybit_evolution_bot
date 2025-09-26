@@ -16,13 +16,13 @@ class RaceVisualizer:
         self.ax.set_xlabel('Производительность')
         self.ax.set_ylabel('Роботы')
         
-    def update(self, frame):
+    def update(self, frame=None):
         if not self.em.population:
             return
             
         # Обновляем данные
         profits = [robot.current_profit for robot in self.em.population]
-        sizes = [abs(profit) * 1000 for profit in profits]  # Размер точки зависит от прибыли
+        sizes = [max(10.0, abs(profit) * 1000.0) for profit in profits]  # Минимальный размер точки
         cycles = [robot.survived_cycles for robot in self.em.population]
         children = [robot.children_count for robot in self.em.population]
         ids = [robot.robot_id for robot in self.em.population]
@@ -46,9 +46,14 @@ class RaceVisualizer:
 
 class MetricsVisualizer:
     def plot_generation_metrics(self, evolution_manager):
-        generations = range(evolution_manager.generation + 1)
-        best_fitness = [gen['best_fitness'] for gen in evolution_manager.history]
-        avg_fitness = [gen['avg_fitness'] for gen in evolution_manager.history]
+        history = evolution_manager.history
+        if not history:
+            return
+        generations = range(len(history))
+        # История может не содержать ключ 'best_fitness' — возьмем из best_robot.fitness
+        best_fitness = [gen.get('best_fitness', gen.get('best_robot', {}).get('fitness', np.nan))
+                        for gen in history]
+        avg_fitness = [gen.get('avg_fitness', np.nan) for gen in history]
         
         plt.figure(figsize=(12, 6))
         plt.plot(generations, best_fitness, label='Лучшая приспособленность', marker='o')

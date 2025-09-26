@@ -8,7 +8,7 @@ def setup_logger(name, log_file='logs/evolution.log', level=logging.INFO):
     
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     
-    handler = logging.FileHandler(log_file)
+    handler = logging.FileHandler(log_file, encoding='utf-8')
     handler.setFormatter(formatter)
     
     console_handler = logging.StreamHandler()

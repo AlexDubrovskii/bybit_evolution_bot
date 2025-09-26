@@ -91,8 +91,11 @@ class EvolutionManager:
                 robot.update_profit(market_data['current_price'])
             
             # Пауза между минутами (в реальной торговле нужно использовать точное время)
-            time.sleep(1)  # Для теста используем 1 секунду вместо 1 минуты
+            time.sleep(5)  # Для теста используем 1 секунду вместо 1 минуты
         
+        logger.info("Принудительное закрытие всех открытых позиций...")
+        for robot in self.population:
+            robot.close_all_positions()
         # Оценка результатов поколения
         self.evaluate_generation()
         
@@ -109,9 +112,6 @@ class EvolutionManager:
         """Получение текущих рыночных данных"""
         try:
             ticker = self.client.get_ticker(self.config['symbol'])
-            
-            # Отладочная информация для понимания структуры ответа
-            print(f"Ticker response: {ticker}")
             
             # Получаем текущую цену из правильного поля
             # Структура ответа: {'result': {'list': [{'lastPrice': '50000.00', ...}]}}
@@ -219,7 +219,17 @@ class EvolutionManager:
         
         # Создаем потомков от лучших роботов
         while len(new_population) < self.config['population_size']:
-            parent1, parent2 = np.random.choice(parents[:10], 2, replace=False)
+            parent_pool = parents[:min(10, len(parents))]
+            if len(parent_pool) == 0:
+                logger.warning("Недостаточно родителей для создания нового поколения; завершаем досрочно")
+                break
+            if len(parent_pool) >= 2:
+                parent1, parent2 = np.random.choice(parent_pool, 2, replace=False)
+            else:
+                # Если только один родитель доступен — используем его дважды
+                parent1 = parent_pool[0]
+                parent2 = parent_pool[0]
+
             child_gene = crossover(parent1.gene, parent2.gene)
             child_gene = mutate(child_gene)
             
