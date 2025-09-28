@@ -18,6 +18,14 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Reduce global noise, keep order-placement logs
+logging.getLogger().setLevel(logging.WARNING)          # root -> WARNING
+logging.getLogger('bybit_client').setLevel(logging.INFO)
+logging.getLogger('evolution_manager').setLevel(logging.WARNING)
+logging.getLogger('robot').setLevel(logging.WARNING)
+logging.getLogger('pybit').setLevel(logging.WARNING)
+logging.getLogger('urllib3').setLevel(logging.WARNING)
+
 def main():
     try:
         # Создаем папки для данных если их нет
@@ -70,7 +78,7 @@ def main():
         # Основной цикл эволюции
         logger.info("Запуск основного цикла эволюции...")
         generation_count = 0
-        max_generations = 10  # Увеличим количество поколений
+        max_generations = 2  # Два поколения для проверки непрерывной торговли
         
         while generation_count < max_generations and evolution_manager.should_continue_evolution():
             logger.info(f"=== ПОКОЛЕНИЕ {generation_count} ===")

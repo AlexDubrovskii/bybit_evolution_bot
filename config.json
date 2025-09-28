@@ -1,11 +1,10 @@
 {
     "testnet": true,
-    "symbol": "DOGEUSDT",
+    "symbol": "BTCUSDT",
     "timeframe": "5",
     "account_type": "UNIFIED",
     "generation_duration_minutes": 5,
-    "population_size": 20,
-    "initial_balance": 1000.0,
+    "population_size": 2,
     "global_trade_percentage": 0.1,
     "fitness_weights": {
         "profit": 1.0,

@@ -71,6 +71,34 @@ class EvolutionManager:
         num_conditions = np.random.randint(2, len(conditions))
         return list(np.random.choice(conditions, num_conditions, replace=False))
     
+    def _ensure_all_positions_closed(self, symbol: str, timeout_sec: int = 60) -> bool:
+        """Гарантированно закрывает все длинные позиции на бирже и ждет подтверждения.
+        Возвращает True если позиций нет к концу таймаута.
+        """
+        try:
+            # Первая попытка закрыть
+            self.client.close_all_longs(symbol)
+            deadline = time.time() + timeout_sec
+            while time.time() < deadline:
+                pos = self.client.get_positions(symbol)
+                long_qty = 0.0
+                for p in pos:
+                    side = (p.get('side') or '').lower()
+                    if side in ('buy', 'long'):
+                        size = p.get('size') or p.get('qty') or p.get('positionQty') or 0
+                        try:
+                            long_qty += float(size)
+                        except Exception:
+                            pass
+                if long_qty <= 0:
+                    logger.info("Все длинные позиции закрыты")
+                    return True
+                logger.info(f"Ожидаем закрытия позиций: осталось long={long_qty}")
+                time.sleep(1)
+        except Exception as e:
+            logger.error(f"Ошибка ожидания закрытия позиций: {e}")
+        return False
+
     def run_generation(self):
         """Запуск одного поколения (торгового цикла)"""
         logger.info(f"Запуск поколения {self.generation}")
@@ -96,6 +124,13 @@ class EvolutionManager:
         logger.info("Принудительное закрытие всех открытых позиций...")
         for robot in self.population:
             robot.close_all_positions()
+
+        # Дополнительная гарантия: ждем фактического закрытия на бирже
+        symbol = self.config['symbol']
+        closed = self._ensure_all_positions_closed(symbol, timeout_sec=90)
+        if not closed:
+            logger.warning("Не удалось подтвердить закрытие всех позиций до таймаута. Переходим к оценке, но следующий цикл может быть отложен.")
+
         # Оценка результатов поколения
         self.evaluate_generation()
         
