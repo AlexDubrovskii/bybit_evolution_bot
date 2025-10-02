@@ -136,12 +136,13 @@ def build_population_report(df: pd.DataFrame, results: List[Dict[str, Any]], out
 
 def main():
     parser = argparse.ArgumentParser(description='Run backtests for N robots and build a combined report')
-    parser.add_argument('--csv', type=str, help='Path to CSV OHLCV file')
+    parser.add_argument('--csv', type=str, help='Path to CSV OHLCV file (columns: open_time,open,high,low,close,volume)')
     parser.add_argument('--symbol', type=str, help='Symbol, e.g., BTCUSDT')
     parser.add_argument('--interval', type=str, default=None, help='Bybit interval, e.g., 5')
     parser.add_argument('--limit', type=int, default=3000)
     parser.add_argument('--count', type=int, default=5, help='Number of robots to simulate')
     parser.add_argument('--report', type=str, required=True, help='Output HTML path')
+    parser.add_argument('--seed', type=int, default=42, help='Random seed for reproducibility')
     parser.add_argument('--printlog', action='store_true')
     args = parser.parse_args()
 
@@ -167,28 +168,51 @@ def main():
         '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf'
     ]
 
-    # Common decision tree and params (you can randomize per robot if needed)
-    base_params = dict(
-        trade_perc=float(cfg.get('global_trade_percentage', 0.1)),
-        rsi_period=14,
-        rsi_buy=35.0,
-        rsi_sell=65.0,
-        ema_fast=12,
-        ema_slow=26,
-        max_bars_in_pos=12,
-        force_first_entry=False,
-        decision_tree=[
-            {'indicator': 'trend_alignment', 'operator': '==', 'value': True, 'action': 'buy'},
-            {'indicator': 'rsi', 'operator': '<', 'value': 35, 'action': 'buy'},
-            {'indicator': 'price_below_ema', 'operator': '==', 'value': True, 'action': 'sell'},
-            {'indicator': 'rsi', 'operator': '>', 'value': 65, 'action': 'sell'},
-        ],
-    )
+    # Randomization helpers
+    import numpy as np
+    rng = np.random.default_rng(args.seed)
+
+    def random_params(base: Dict[str, Any]) -> Dict[str, Any]:
+        p = dict(base)
+        # trade_perc in [0.05, 0.2]
+        p['trade_perc'] = float(np.round(rng.uniform(0.05, 0.2), 4))
+        # RSI period in [7, 21]
+        p['rsi_period'] = int(rng.integers(7, 22))
+        # RSI thresholds: buy in [20,40], sell in [55,80] with sell>buy
+        buy_thr = int(rng.integers(20, 41))
+        sell_thr = int(rng.integers(max(55, buy_thr+10), 81))
+        p['rsi_buy'] = float(buy_thr)
+        p['rsi_sell'] = float(sell_thr)
+        # EMA fast/slow: fast in [5,20], slow in [fast+5, fast+30]
+        fast = int(rng.integers(5, 21))
+        slow = int(rng.integers(fast+5, fast+31))
+        p['ema_fast'] = fast
+        p['ema_slow'] = slow
+        # Holding bars [6, 36]
+        p['max_bars_in_pos'] = int(rng.integers(6, 37))
+        # Decision tree: keep base logic
+        return p
 
     results_for_plot: List[Dict[str, Any]] = []
 
     for rid in range(args.count):
-        params = dict(base_params)
+        base_params = dict(
+            trade_perc=float(cfg.get('global_trade_percentage', 0.1)),
+            rsi_period=14,
+            rsi_buy=35.0,
+            rsi_sell=65.0,
+            ema_fast=12,
+            ema_slow=26,
+            max_bars_in_pos=12,
+            force_first_entry=False,
+            decision_tree=[
+                {'indicator': 'trend_alignment', 'operator': '==', 'value': True, 'action': 'buy'},
+                {'indicator': 'rsi', 'operator': '<', 'value': 35, 'action': 'buy'},
+                {'indicator': 'price_below_ema', 'operator': '==', 'value': True, 'action': 'sell'},
+                {'indicator': 'rsi', 'operator': '>', 'value': 65, 'action': 'sell'},
+            ],
+        )
+        params = random_params(base_params)
         params['robot_id'] = rid
         res = engine.run(GeneDrivenBtStrategy, df, params, timeframe=str(timeframe), printlog=args.printlog)
         results_for_plot.append({
