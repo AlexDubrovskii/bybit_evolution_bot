@@ -135,15 +135,17 @@ class BybitClient:
             pass
         return None
     
-    def get_klines(self, symbol, interval, limit=100):
-        """Получение исторических данных (свечей)"""
+    def get_klines(self, symbol, interval, limit=100, start: int = None, end: int = None):
+        """Получение исторических данных (свечей).
+        start и end в миллисекундах (UTC). Если не заданы — вернутся последние свечи.
+        """
         try:
-            response = self.session.get_kline(
-                category="linear",
-                symbol=symbol,
-                interval=interval,
-                limit=limit
-            )
+            params = dict(category="linear", symbol=symbol, interval=interval, limit=limit)
+            if start is not None:
+                params["start"] = int(start)
+            if end is not None:
+                params["end"] = int(end)
+            response = self.session.get_kline(**params)
             if response and 'result' in response:
                 return response['result']['list']
             return []
